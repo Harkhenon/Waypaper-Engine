@@ -128,7 +128,7 @@ const RendererApp = GObject.registerClass(
           title: `@${APPLICATION_ID}|${index}`
         })
         window.set_child(index === 0 ? widget : buildWidgetFromPaintable())
-        window.fullscreen_on_monitor(gdkMonitor)
+        window.fullscreen_on_monitor(index)
         window.present()
       })
       settings?.connect('changed', (s, key) => {

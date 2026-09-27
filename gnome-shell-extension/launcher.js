@@ -40,7 +40,28 @@ export class RendererLauncher {
     if (this._launcher.close) this._launcher.close()
     this._launcher = null
     this.running = this.subprocess !== null
+    if (this.subprocess) {
+      this._dataInputStream = Gio.DataInputStream.new(this.subprocess.get_stdout_pipe())
+      this._readOutput()
+    }
     return this.subprocess
+  }
+
+  _readOutput() {
+    if (!this._dataInputStream) return
+    this._dataInputStream.read_line_async(
+      GLib.PRIORITY_DEFAULT,
+      this.cancellable,
+      (object, res) => {
+        try {
+          const [output, length] = object.read_line_finish_utf8(res)
+          if (length) console.log(`[waypaper-renderer] ${output}`)
+        } catch (e) {
+          return
+        }
+        this._readOutput()
+      }
+    )
   }
 
   query_window_belongs_to(window) {

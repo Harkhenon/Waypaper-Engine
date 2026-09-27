@@ -51,6 +51,7 @@ export const LiveWallpaper = GObject.registerClass(
         if (this._isDisposed) return false
         const renderer = this._findRendererActor()
         if (renderer) {
+          console.log(`[waypaper] clone attaché (moniteur ${this._backgroundActor.monitor})`)
           this._wallpaper = new Clutter.Clone({
             source: renderer,
             pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 })

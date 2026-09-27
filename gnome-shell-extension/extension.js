@@ -74,15 +74,23 @@ export default class WaypaperExtension extends Extension {
     })
   }
 
+  _getLaters() {
+    if (global.compositor?.get_laters) return global.compositor.get_laters()
+    if (Meta.Laters?.get) return Meta.Laters.get()
+    return null
+  }
+
   _reloadBackgrounds() {
     this._wallpaperActors?.forEach((actor) => actor.destroy())
     this._wallpaperActors?.clear()
-    const laters = global.compositor?.get_laters?.() ?? null
+    const laters = this._getLaters()
     if (laters) {
       laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
         Main.layoutManager._updateBackgrounds()
         return GLib.SOURCE_REMOVE
       })
+    } else {
+      Main.layoutManager._updateBackgrounds()
     }
   }
 
@@ -97,6 +105,7 @@ export default class WaypaperExtension extends Extension {
   }
 
   _launchRenderer(videoPath) {
+    console.log(`[waypaper] lancement renderer : ${videoPath}`)
     const argv = [
       'gjs',
       GLib.build_filenamev([this.path, 'renderer', 'renderer.js']),
@@ -112,8 +121,9 @@ export default class WaypaperExtension extends Extension {
       this._subprocess = null
       return
     }
-    this._subprocess.wait_async(null, (obj, res) => {
+    this._subprocess.subprocess.wait_async(null, (obj, res) => {
       obj.wait_finish(res)
+      console.log(`[waypaper] renderer terminé (exit ${obj.get_exit_status()})`)
       if (!this._subprocess || obj !== this._subprocess.subprocess) return
       this._subprocess = null
       if (this._enabled && this._settings.get_string('video-path') !== '') {
