@@ -154,29 +154,32 @@ function runGsettings(args: string[]): Promise<{ code: number; stdout: string; s
   })
 }
 
-const GNOME_BACKGROUND_KEYS = [
-  'picture-uri',
-  'picture-uri-dark'
-]
-
 async function setGnomeBackground(imagePath: string): Promise<SetWallpaperResult> {
   const uri = pathToFileURL(imagePath).href
   console.log(`[render:gnome] application de ${uri}`)
 
-  for (const key of GNOME_BACKGROUND_KEYS) {
-    const result = await runGsettings([
-      'set',
-      'org.gnome.desktop.background',
-      key,
-      uri
-    ])
-    if (result.code !== 0) {
-      console.error(`[render:gnome] gsettings ${key} échec : ${result.stderr.trim()}`)
-      return {
-        ok: false,
-        error: `gsettings ${key} a échoué (code ${result.code}).`
-      }
+  const main = await runGsettings([
+    'set',
+    'org.gnome.desktop.background',
+    'picture-uri',
+    uri
+  ])
+  if (main.code !== 0) {
+    console.error(`[render:gnome] gsettings picture-uri échec : ${main.stderr.trim()}`)
+    return {
+      ok: false,
+      error: `gsettings picture-uri a échoué (code ${main.code}).`
     }
+  }
+
+  const dark = await runGsettings([
+    'set',
+    'org.gnome.desktop.background',
+    'picture-uri-dark',
+    uri
+  ])
+  if (dark.code !== 0) {
+    console.log('[render:gnome] picture-uri-dark ignorée (clé absente sur ce GNOME)')
   }
 
   const readBack = await runGsettings([
@@ -186,10 +189,10 @@ async function setGnomeBackground(imagePath: string): Promise<SetWallpaperResult
   ])
   console.log(`[render:gnome] valeur relue : ${readBack.stdout.trim()}`)
   if (!readBack.stdout.includes(imagePath)) {
-    console.error('[render:gnome] la valeur relue ne correspond pas au chemin appliqué')
+    console.error('[render:gnome] la valeur relue ne correspond pas au chemin appliqu\u00e9')
     return {
       ok: false,
-      error: 'Le fond a été écrit mais la relecture ne correspond pas (profil dconf différent ?).'
+      error: 'Le fond a \u00e9t\u00e9 \u00e9crit mais la relecture ne correspond pas (profil dconf diff\u00e9rent ?).'
     }
   }
 
