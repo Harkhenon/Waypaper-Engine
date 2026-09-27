@@ -2,15 +2,6 @@ import { useEffect, useState } from 'react'
 import { ActionIcon, Group, Text, Box, Divider } from '@mantine/core'
 import { IconMinimize, IconMaximize, IconRestore, IconX, IconPhoto } from '@tabler/icons-react'
 
-const titleBarStyle = {
-  '-webkit-app-region': 'drag',
-  '-webkit-user-select': 'none'
-} as const
-
-const controlsStyle = {
-  '-webkit-app-region': 'no-drag'
-} as const
-
 export function TitleBar() {
   const api = window.api
   const [maximized, setMaximized] = useState(false)
@@ -21,7 +12,7 @@ export function TitleBar() {
 
   return (
     <Box
-      style={titleBarStyle}
+      className="titlebar-drag"
       h={36}
       px="sm"
       bg="anthracite.8"
@@ -35,7 +26,7 @@ export function TitleBar() {
           </Text>
         </Group>
 
-        <Group gap={4} style={controlsStyle} h="100%">
+        <Group gap={4} className="titlebar-no-drag" h="100%">
           <ActionIcon
             variant="subtle"
             c="anthracite.1"
