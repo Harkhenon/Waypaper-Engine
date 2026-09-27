@@ -35,6 +35,7 @@ function configureDisplayBackend(): void {
 }
 
 function createWindow(): void {
+  console.log('[waypaper] createWindow : début')
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -49,9 +50,29 @@ function createWindow(): void {
       sandbox: false
     }
   })
+  console.log('[waypaper] createWindow : BrowserWindow créé')
 
   win.on('ready-to-show', () => {
+    console.log('[waypaper] fenêtre : ready-to-show')
     win.show()
+  })
+
+  win.on('close', () => {
+    console.log('[waypaper] fenêtre : close')
+  })
+
+  win.on('closed', () => {
+    console.log('[waypaper] fenêtre : closed')
+  })
+
+  win.webContents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL) => {
+    console.error(
+      `[waypaper] chargement échoué : ${errorCode} ${errorDescription} ${validatedURL}`
+    )
+  })
+
+  win.webContents.on('did-finish-load', () => {
+    console.log('[waypaper] chargement terminé')
   })
 
   win.webContents.setWindowOpenHandler((details) => {
@@ -73,6 +94,11 @@ if (process.env['WAYPAPER_DISABLE_GPU'] === '1') {
   app.disableHardwareAcceleration()
 }
 
+if (process.env['WAYPAPER_NO_SANDBOX'] === '1') {
+  console.log('[waypaper] WAYPAPER_NO_SANDBOX=1 : sandbox Chromium désactivé (diagnostic)')
+  app.commandLine.appendSwitch('no-sandbox')
+}
+
 app.on('child-process-gone', (_event, details) => {
   console.error('[waypaper] process enfant terminé :', JSON.stringify(details, null, 2))
 })
@@ -82,6 +108,7 @@ app.on('render-process-gone', (_event, _wc, details) => {
 })
 
 void app.whenReady().then(() => {
+  console.log('[waypaper] whenReady résolu, création de la fenêtre')
   createWindow()
 
   app.on('activate', function () {
@@ -90,6 +117,7 @@ void app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  console.log('[waypaper] window-all-closed : quitter')
   if (process.platform !== 'darwin') {
     app.quit()
   }
