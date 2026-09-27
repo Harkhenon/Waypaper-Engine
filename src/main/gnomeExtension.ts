@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+import { exec, spawn } from 'child_process'
 import { promises as fs } from 'fs'
 import { existsSync } from 'fs'
 import { cp } from 'fs/promises'
@@ -65,6 +65,8 @@ export async function installExtension(): Promise<InstallResult> {
   if (!existsSync(join(source, 'metadata.json'))) {
     return { ok: false, error: `Sources de l'extension introuvables (${source}).` }
   }
+
+  // 1. Copie locale (supporte les shells qui n'ont pas l'API D-Bus d'install)
   const target = installedExtensionDir()
   await fs.rm(target, { recursive: true, force: true })
   await cp(source, target, { recursive: true })
@@ -72,15 +74,78 @@ export async function installExtension(): Promise<InstallResult> {
   if (compile.code !== 0) {
     return { ok: false, error: `Compilation du schéma échouée : ${compile.stderr.slice(0, 300)}` }
   }
-  const enable = await run('gnome-extensions', ['enable', EXTENSION_UUID])
-  if (enable.code !== 0) {
-    return {
-      ok: false,
-      error: `Activation échouée : ${enable.stderr.slice(0, 300)}`
+
+  // 2. Enregistrement à chaud auprès du shell : l'extension n'est vue par
+  // gnome-extensions qu'après ce passage (ou un redémarrage du shell).
+  // On zippe le dossier cible (schémas déjà compilés) car l'installation
+  // remplace le contenu du dossier d'extension par celui du zip.
+  const zipResult = await zipExtension(target)
+  if (zipResult.ok && zipResult.zipPath) {
+    const install = await run('gnome-extensions', ['install', zipResult.zipPath])
+    if (install.code === 0) {
+      const enable = await run('gnome-extensions', ['enable', EXTENSION_UUID])
+      if (enable.code === 0) {
+        console.log('[gnome-extension] installée et activée (zip)')
+        return { ok: true }
+      }
+      return {
+        ok: false,
+        error: `Activation échouée : ${enable.stderr.slice(0, 300)}`
+      }
     }
+    // install indisponible ou échoué (ex. shell non-EOG-style) : la copie
+    // locale reste en place, l'utilisateur devra se reconnecter.
+    console.log(
+      `[gnome-extension] gnome-extensions install a échoué (${install.stderr.trim().slice(0, 200)}) — la copie locale reste en place`
+    )
+  } else {
+    console.log(
+      `[gnome-extension] zip non créé (${zipResult.error ?? 'erreur inconnue'}) — copie locale uniquement`
+    )
   }
-  console.log('[gnome-extension] installée et activée')
-  return { ok: true }
+
+  // 3. Repli : activer directement (fonctionne si le shell a déjà scanné le dossier)
+  const enable = await run('gnome-extensions', ['enable', EXTENSION_UUID])
+  if (enable.code === 0) {
+    console.log('[gnome-extension] activée après copie locale')
+    return { ok: true }
+  }
+  return {
+    ok: false,
+    error:
+      "Extension copiée mais invisible pour le shell. Déconnectez-vous puis reconnectez-vous pour qu'elle apparaisse, puis activez-la."
+  }
+}
+
+interface ZipResult {
+  ok: boolean
+  zipPath?: string
+  error?: string
+}
+
+async function zipExtension(source: string): Promise<ZipResult> {
+  const zipPath = join(app.getPath('userData'), `${EXTENSION_UUID}.zip`)
+  try {
+    await fs.rm(zipPath, { force: true })
+    await execAsync(`cd ${shq(source)} && zip -q -r ${shq(zipPath)} .`)
+    return { ok: true, zipPath }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+function shq(value: string): string {
+  const escaped = value.replaceAll(String.fromCharCode(39), String.fromCharCode(39, 92, 39, 39))
+  return String.fromCharCode(39) + escaped + String.fromCharCode(39)
+}
+
+function execAsync(cmd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    exec(cmd, (err) => {
+      if (err) reject(err)
+      else resolve()
+    })
+  })
 }
 
 export async function setExtensionVideoPath(videoPath: string | null): Promise<void> {
