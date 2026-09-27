@@ -1,16 +1,47 @@
 import { useState } from 'react'
 import { AppShell, Box, Stack } from '@mantine/core'
+import { notifications } from '@mantine/notifications'
+import { IconAlertTriangle, IconCheck } from '@tabler/icons-react'
 import TitleBar from './components/TitleBar'
 import AppNavbar from './components/AppNavbar'
 import LibraryView from './components/library/LibraryView'
 import MonitorsView from './components/monitors/MonitorsView'
 import SettingsView from './components/settings/SettingsView'
 import { useWorkshop } from './hooks/useWorkshop'
+import { useRender } from './hooks/useRender'
+import type { Wallpaper } from './data/wallpaper'
 import type { NavigationValue } from './data/navigation'
 
 export default function App() {
   const [section, setSection] = useState<NavigationValue>('library')
   const workshop = useWorkshop()
+  const render = useRender()
+
+  const handleSetWallpaper = (wallpaper: Wallpaper): void => {
+    void (async () => {
+      const result = await render.set({
+        wallpaperId: wallpaper.id,
+        folder: wallpaper.folder
+      })
+      if (result.ok) {
+        notifications.show({
+          title: 'Wallpaper lancé',
+          message: `« ${wallpaper.title} » est en cours de rendu sur le bureau.`,
+          color: 'teal',
+          icon: <IconCheck size={18} stroke={1.5} />,
+          autoClose: 3500
+        })
+      } else {
+        notifications.show({
+          title: 'Échec du rendu',
+          message: result.error ?? 'Erreur inconnue.',
+          color: 'red',
+          icon: <IconAlertTriangle size={18} stroke={1.5} />,
+          autoClose: 6000
+        })
+      }
+    })()
+  }
 
   return (
     <Stack gap={0} h="100%">
@@ -25,7 +56,11 @@ export default function App() {
         <AppShell.Main h="calc(100vh - 36px)">
           <Box h="100%" style={{ overflowY: 'auto' }}>
             {section === 'library' && (
-              <LibraryView items={workshop.items} scanning={workshop.scanning} />
+              <LibraryView
+                items={workshop.items}
+                scanning={workshop.scanning}
+                onSet={handleSetWallpaper}
+              />
             )}
             {section === 'monitors' && <MonitorsView />}
             {section === 'settings' && (
@@ -39,6 +74,10 @@ export default function App() {
                 onScanWorkshop={() => void workshop.scan()}
                 onOpenSteamStore={workshop.openSteamStore}
                 onRedetectWorkshop={() => void workshop.redetect()}
+                renderState={render.state}
+                renderDetecting={render.detecting}
+                onDetectRender={() => void render.detect()}
+                onSelectRenderBackend={(id) => void render.setActive(id)}
               />
             )}
           </Box>

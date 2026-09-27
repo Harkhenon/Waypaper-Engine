@@ -1,6 +1,5 @@
-import { notifications } from '@mantine/notifications'
 import { ActionIcon, Card, Group, Stack, Text, Tooltip } from '@mantine/core'
-import { IconCheck, IconDeviceDesktop } from '@tabler/icons-react'
+import { IconDeviceDesktop } from '@tabler/icons-react'
 import type { Wallpaper } from '../../data/wallpaper'
 import { WALLPAPER_TYPE_META } from '../../data/wallpaper'
 import WallpaperPreview from './WallpaperPreview'
@@ -20,19 +19,15 @@ function formatDate(iso: string): string {
   })
 }
 
-export function WallpaperCard({ wallpaper }: { wallpaper: Wallpaper }) {
+interface WallpaperCardProps {
+  wallpaper: Wallpaper
+  onSet: (wallpaper: Wallpaper) => void
+}
+
+export function WallpaperCard({ wallpaper, onSet }: WallpaperCardProps) {
   const supported = WALLPAPER_TYPE_META[wallpaper.type].supported
 
-  const handleSet = (): void => {
-    window.api.wallpaper.set(wallpaper.id)
-    notifications.show({
-      title: 'Wallpaper défini',
-      message: `« ${wallpaper.title} » a été défini sur le bureau.`,
-      color: 'teal',
-      icon: <IconCheck size={18} stroke={1.5} />,
-      autoClose: 3500
-    })
-  }
+  const handleSet = (): void => onSet(wallpaper)
 
   return (
     <Card padding={0} withBorder className="wallpaper-card">

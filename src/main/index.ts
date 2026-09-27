@@ -1,7 +1,9 @@
 import { app, shell, BrowserWindow, dialog, ipcMain, protocol, net } from 'electron'
 import { detectWorkshopFolders, readConfig, scanWorkshopFolder, writeConfig } from './workshop'
+import { detectBackends, setActiveBackend, setWallpaper, stopWallpaper } from './render'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
+import type { SetWallpaperPayload } from '../shared/render'
 import { is } from '@electron-toolkit/utils'
 
 function isWaylandSession(): boolean {
@@ -96,9 +98,10 @@ function createWindow(): void {
     win.show()
   })
 
-  ipcMain.on('wallpaper:set', (_event, wallpaperId: string) => {
-    console.log(`[test] wallpaper:set reçu — id=${wallpaperId}`)
-  })
+  ipcMain.handle('render:detect', () => detectBackends())
+  ipcMain.handle('render:set-active', (_event, backendId: string | null) => setActiveBackend(backendId))
+  ipcMain.handle('render:set', (_event, payload: SetWallpaperPayload) => setWallpaper(payload))
+  ipcMain.handle('render:stop', () => stopWallpaper())
 
   ipcMain.on('window:minimize', () => win.minimize())
   ipcMain.on('window:maximize', () => {

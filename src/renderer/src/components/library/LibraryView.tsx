@@ -42,9 +42,10 @@ function applyFilters(
 interface LibraryViewProps {
   items: ScannedWorkshopItem[]
   scanning: boolean
+  onSet: (wallpaper: Wallpaper) => void
 }
 
-export function LibraryView({ items, scanning }: LibraryViewProps) {
+export function LibraryView({ items, scanning, onSet }: LibraryViewProps) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilterValue>('all')
   const [sort, setSort] = useState<SortValue>('recent')
@@ -131,7 +132,7 @@ export function LibraryView({ items, scanning }: LibraryViewProps) {
         <Grid gap="md">
           {filtered.map((wallpaper) => (
             <Grid.Col key={wallpaper.id} span={{ base: 12, sm: 6, md: 4, lg: 3 }}>
-              <WallpaperCard wallpaper={wallpaper} />
+              <WallpaperCard wallpaper={wallpaper} onSet={onSet} />
             </Grid.Col>
           ))}
         </Grid>

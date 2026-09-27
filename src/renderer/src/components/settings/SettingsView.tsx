@@ -1,8 +1,8 @@
-import { Divider, Select, Stack, Text, Title } from '@mantine/core'
-import { DISPLAY_BACKEND_META, DISPLAY_BACKENDS } from '../../data/display'
-import { MOCK_ACTIVE_BACKEND } from '../../data/mock/monitors'
+import { Divider, Stack, Title } from '@mantine/core'
 import WorkshopFolderSection from './WorkshopFolderSection'
+import RenderBackendSection from './RenderBackendSection'
 import type { ScannedWorkshopItem } from '../../hooks/useWorkshop'
+import type { RenderState } from '../../hooks/useRender'
 
 interface SettingsViewProps {
   workshopFolder: string | null
@@ -14,12 +14,11 @@ interface SettingsViewProps {
   onScanWorkshop: () => void
   onOpenSteamStore: () => void
   onRedetectWorkshop: () => void
+  renderState: RenderState
+  renderDetecting: boolean
+  onDetectRender: () => void
+  onSelectRenderBackend: (backendId: string | null) => void
 }
-
-const BACKEND_OPTIONS = DISPLAY_BACKENDS.map((b) => ({
-  value: b,
-  label: DISPLAY_BACKEND_META[b].label
-}))
 
 export function SettingsView({
   workshopFolder,
@@ -30,7 +29,11 @@ export function SettingsView({
   onSelectWorkshopFolder,
   onScanWorkshop,
   onOpenSteamStore,
-  onRedetectWorkshop
+  onRedetectWorkshop,
+  renderState,
+  renderDetecting,
+  onDetectRender,
+  onSelectRenderBackend
 }: SettingsViewProps) {
   return (
     <Stack gap="md" maw={560}>
@@ -47,17 +50,12 @@ export function SettingsView({
         onRedetect={onRedetectWorkshop}
       />
       <Divider />
-      <Select
-        label="Backend d'affichage"
-        description="Backend utilisé pour le rendu des wallpapers sur le bureau"
-        data={BACKEND_OPTIONS}
-        value={MOCK_ACTIVE_BACKEND}
-        allowDeselect={false}
+      <RenderBackendSection
+        state={renderState}
+        detecting={renderDetecting}
+        onDetect={onDetectRender}
+        onSelect={onSelectRenderBackend}
       />
-      <Text size="xs" c="anthracite.3">
-        Le backend d'affichage reste une donnée factice pour l'instant — le
-        rendu réel arrivera avec les backends mpvpaper/X11.
-      </Text>
     </Stack>
   )
 }

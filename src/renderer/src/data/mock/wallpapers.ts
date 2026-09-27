@@ -11,6 +11,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['nature', 'anime', 'calme'],
     sizeMb: 42,
     updatedAt: '2026-09-01',
+    folder: '/mock/wp-001',
     type: 'video',
     content: {
       videoFile: 'sakura-drift.mp4',
@@ -29,6 +30,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['cyberpunk', 'ville', 'pluie'],
     sizeMb: 210,
     updatedAt: '2026-09-10',
+    folder: '/mock',
     type: 'video',
     content: {
       videoFile: 'neon-tokyo.mp4',
@@ -47,6 +49,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['synthwave', 'rétro', 'gpu'],
     sizeMb: 8,
     updatedAt: '2026-08-22',
+    folder: '/mock',
     type: 'scene',
     content: {
       sceneFile: 'scene.pkg',
@@ -64,6 +67,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['lofi', 'anime', 'musique'],
     sizeMb: 15,
     updatedAt: '2026-09-15',
+    folder: '/mock',
     type: 'web',
     content: {
       entryFile: 'index.html',
@@ -81,6 +85,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['nature', 'nuit', 'calme'],
     sizeMb: 95,
     updatedAt: '2026-07-30',
+    folder: '/mock',
     type: 'video',
     content: {
       videoFile: 'aurora.mp4',
@@ -99,6 +104,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['abstrait', 'particules', 'gpu'],
     sizeMb: 12,
     updatedAt: '2026-09-18',
+    folder: '/mock',
     type: 'scene',
     content: {
       sceneFile: 'reactor.pkg',
@@ -116,6 +122,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['mécanique', 'horloge'],
     sizeMb: 3,
     updatedAt: '2026-06-12',
+    folder: '/mock',
     type: 'web',
     content: {
       entryFile: 'gears.html',
@@ -133,6 +140,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['océan', 'calme', 'poisson'],
     sizeMb: 130,
     updatedAt: '2026-08-05',
+    folder: '/mock',
     type: 'video',
     content: {
       videoFile: 'deep-ocean.mp4',
@@ -151,6 +159,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['matrix', 'terminal'],
     sizeMb: 20,
     updatedAt: '2026-05-20',
+    folder: '/mock',
     type: 'application',
     content: {
       executable: 'matrix-terminal.exe'
@@ -166,6 +175,7 @@ export const MOCK_WALLPAPERS: Wallpaper[] = [
     tags: ['playlist', 'calme'],
     sizeMb: 0,
     updatedAt: '2026-09-20',
+    folder: '/mock',
     type: 'playlist',
     content: {
       children: ['wp-001', 'wp-005', 'wp-008']

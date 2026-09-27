@@ -26,6 +26,7 @@ interface WallpaperBase {
   tags: string[]
   sizeMb: number
   updatedAt: string
+  folder: string
 }
 
 export interface VideoWallpaper extends WallpaperBase {

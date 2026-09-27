@@ -4,8 +4,9 @@ import { join, resolve } from 'path'
 import { DEFAULT_WORKSHOP_FOLDERS, WORKSHOP_APP_ID } from '../shared/workshop'
 import { extractPreviewFromPkg, findPkgFile, readProjectFromPkg } from './pkg'
 
-interface WorkshopConfig {
+export interface WorkshopConfig {
   folder: string | null
+  activeBackend?: string | null
 }
 
 interface ScannedItem {
@@ -27,7 +28,7 @@ export async function readConfig(): Promise<WorkshopConfig> {
   try {
     const raw = await fs.readFile(configPath(), 'utf-8')
     const parsed = JSON.parse(raw) as Partial<WorkshopConfig>
-    return { folder: parsed.folder ?? null }
+    return { folder: parsed.folder ?? null, activeBackend: parsed.activeBackend ?? null }
   } catch {
     return { folder: null }
   }

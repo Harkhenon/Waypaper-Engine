@@ -1,3 +1,5 @@
+import type { SetWallpaperPayload, SetWallpaperResult } from '../shared/render'
+
 export interface ScannedWorkshopItem {
   id: string
   folder: string
@@ -19,8 +21,22 @@ export interface WindowApi {
   onMaximizedChange: (callback: (maximized: boolean) => void) => () => void
 }
 
-export interface WallpaperApi {
-  set: (wallpaperId: string) => void
+export interface RenderBackendStatus {
+  id: string
+  available: boolean
+}
+
+export interface RenderDetectResult {
+  sessionType: 'X11' | 'Wayland'
+  backends: RenderBackendStatus[]
+  active: string | null
+}
+
+export interface RenderApi {
+  detect: () => Promise<RenderDetectResult>
+  setActive: (backendId: string | null) => Promise<void>
+  set: (payload: SetWallpaperPayload) => Promise<SetWallpaperResult>
+  stop: () => Promise<void>
 }
 
 export interface DetectedWorkshopFolder {
@@ -44,7 +60,7 @@ export interface TestApi {
 
 export interface Api {
   window: WindowApi
-  wallpaper: WallpaperApi
+  render: RenderApi
   workshop: WorkshopApi
   test: TestApi
 }

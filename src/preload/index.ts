@@ -1,4 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { SetWallpaperPayload, SetWallpaperResult } from '../shared/render'
+
+export interface RenderBackendStatus {
+  id: string
+  available: boolean
+}
+
+export interface RenderDetectResult {
+  sessionType: 'X11' | 'Wayland'
+  backends: RenderBackendStatus[]
+  active: string | null
+}
 
 export interface ScannedWorkshopItem {
   id: string
@@ -25,11 +37,13 @@ const windowApi = {
   }
 }
 
-const wallpaperApi = {
-  set: (wallpaperId: string): void => {
-    console.log(`[test] wallpaperApi.set — ${wallpaperId}`)
-    ipcRenderer.send('wallpaper:set', wallpaperId)
-  }
+const renderApi = {
+  detect: (): Promise<RenderDetectResult> => ipcRenderer.invoke('render:detect'),
+  setActive: (backendId: string | null): Promise<void> =>
+    ipcRenderer.invoke('render:set-active', backendId),
+  set: (payload: SetWallpaperPayload): Promise<SetWallpaperResult> =>
+    ipcRenderer.invoke('render:set', payload),
+  stop: (): Promise<void> => ipcRenderer.invoke('render:stop')
 }
 
 export interface DetectedWorkshopFolder {
@@ -62,7 +76,7 @@ const testApi = {
 
 const api = {
   window: windowApi,
-  wallpaper: wallpaperApi,
+  render: renderApi,
   workshop: workshopApi,
   test: testApi
 }
