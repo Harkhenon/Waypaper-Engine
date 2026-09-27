@@ -12,6 +12,10 @@ function configureDisplayBackend(): void {
   const forceNativeWayland = process.env['WAYPAPER_NATIVE_WAYLAND'] === '1'
   const wayland = isWaylandSession()
 
+  if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('gtk-version', '3')
+  }
+
   if (!wayland) {
     console.log('[waypaper] session X11 : backend natif x11')
     return
