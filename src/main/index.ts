@@ -8,12 +8,21 @@ function isWaylandSession(): boolean {
   return sessionType === 'wayland'
 }
 
+function hasNvidiaGpu(): boolean {
+  return process.env['NVIDIA_VISIBLE_DEVICES'] !== undefined || process.env['__GLX_VENDOR_LIBRARY_NAME'] === 'nvidia'
+}
+
 function configureGpuForWayland(): void {
   if (process.env['WAYPAPER_FORCE_XWAYLAND']) {
     app.commandLine.appendSwitch('ozone-platform', 'x11')
     return
   }
   if (!isWaylandSession()) return
+
+  if (hasNvidiaGpu()) {
+    app.commandLine.appendSwitch('ozone-platform', 'x11')
+    return
+  }
 
   app.commandLine.appendSwitch('use-angle', 'gl')
   app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan')

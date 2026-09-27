@@ -86,3 +86,19 @@ UI sont alimentées par des objets de données factices en attendant les
 canaux IPC réels.
 
 **Motif** : règle projet explicite, applicable dès le scaffolding.
+
+## ADR-009 — UI sous XWayland sur NVIDIA Wayland
+
+**Décision** : sous session Wayland avec GPU NVIDIA, l'UI Electron bascule
+automatiquement sur `ozone-platform=x11` (XWayland). Sur les autres GPU, on
+force `use-angle=gl` et on désactive les chemins Vulkan
+(`Vulkan,VulkanFromANGLE,DefaultANGLEVulkan`). La variable
+`WAYPAPER_FORCE_XWAYLAND=1` force XWayland sur tout environnement.
+
+**Motif** : bug amont Electron/Chromium non résolu — le backend ozone
+Wayland tente d'initialiser Vulkan même avec les flags de désactivation
+(référence : issues Electron #36633, Brave #55805), et NVIDIA est le cas le
+plus récalcitrant. Sans impact produit : le rendu des wallpapers est délégué
+aux backends d'affichage (ADR-004/006), l'UI n'est pas le chemin de rendu.
+À réexaminer quand Electron corrigera l'amont.
+
