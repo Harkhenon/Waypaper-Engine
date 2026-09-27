@@ -45,6 +45,7 @@ export interface GnomeExtensionPlaybackState {
   muted: boolean
   loop: boolean
   videoPath: string
+  videoPaths: Record<string, string>
 }
 
 export interface ExtensionMonitorInfo {

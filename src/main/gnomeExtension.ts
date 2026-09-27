@@ -301,6 +301,7 @@ export interface ExtensionPlaybackState {
   muted: boolean
   loop: boolean
   videoPath: string
+  videoPaths: Record<string, string>
 }
 
 async function readExtensionBoolean(key: 'paused' | 'mute' | 'loop'): Promise<boolean> {
@@ -315,15 +316,16 @@ async function readExtensionBoolean(key: 'paused' | 'mute' | 'loop'): Promise<bo
 }
 
 export async function getExtensionPlaybackState(): Promise<ExtensionPlaybackState> {
-  const [paused, muted, loop, videoResult] = await Promise.all([
+  const [paused, muted, loop, videoResult, videoPaths] = await Promise.all([
     readExtensionBoolean('paused'),
     readExtensionBoolean('mute'),
     readExtensionBoolean('loop'),
-    run('gsettings', ['get', EXTENSION_SCHEMA, 'video-path'])
+    run('gsettings', ['get', EXTENSION_SCHEMA, 'video-path']),
+    readVideoPaths()
   ])
   const raw = videoResult.stdout.trim()
-  const videoPath = raw.startsWith("'") && raw.endsWith("'") ? raw.slice(1, -1) : raw
-  return { paused, muted, loop, videoPath }
+  const videoPath = raw.startsWith("'") && raw.endsWith("'") ? parseGVariantString(raw) : raw
+  return { paused, muted, loop, videoPath, videoPaths }
 }
 
 export async function setExtensionPlaybackValue(

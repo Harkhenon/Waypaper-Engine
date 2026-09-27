@@ -68,6 +68,8 @@ export default function App() {
               <MonitorsView
                 monitors={monitors.monitors}
                 loading={monitors.loading}
+                playback={render.playback}
+                wallpapers={workshop.items}
                 onRefresh={() => void monitors.refresh()}
               />
             )}
