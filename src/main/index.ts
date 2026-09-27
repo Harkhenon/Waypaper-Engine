@@ -9,20 +9,31 @@ function isWaylandSession(): boolean {
 }
 
 function configureDisplayBackend(): void {
-  const forceNativeWayland = process.env['WAYPAPER_NATIVE_WAYLAND'] === '1'
+  const nativeWaylandRequested = process.env['WAYPAPER_NATIVE_WAYLAND'] === '1'
   const wayland = isWaylandSession()
+  const hasXwayland = Boolean(process.env['DISPLAY'])
 
   if (process.platform === 'linux') {
     app.commandLine.appendSwitch('gtk-version', '3')
   }
+
+  console.log(
+    `[waypaper] env : DISPLAY=${process.env['DISPLAY'] ?? '(vide)'} ` +
+      `WAYLAND_DISPLAY=${process.env['WAYLAND_DISPLAY'] ?? '(vide)'} ` +
+      `XDG_SESSION_TYPE=${process.env['XDG_SESSION_TYPE'] ?? '(vide)'}`
+  )
 
   if (!wayland) {
     console.log('[waypaper] session X11 : backend natif x11')
     return
   }
 
-  if (forceNativeWayland) {
-    console.log('[waypaper] session Wayland : backend natif demandé (WAYPAPER_NATIVE_WAYLAND=1)')
+  if (nativeWaylandRequested || !hasXwayland) {
+    console.log(
+      nativeWaylandRequested
+        ? '[waypaper] session Wayland : backend natif demandé (WAYPAPER_NATIVE_WAYLAND=1)'
+        : '[waypaper] session Wayland : XWayland indisponible (DISPLAY vide), backend natif'
+    )
     app.commandLine.appendSwitch('use-angle', 'gl')
     app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan')
     app.commandLine.appendSwitch('disable-vulkan-surface')
