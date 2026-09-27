@@ -27,30 +27,18 @@ export function toWallpaper(item: ScannedWorkshopItem): Wallpaper {
     ? (item.type as WallpaperType)
     : 'application'
 
-  const base = {
+  return {
     id: item.id,
     workshopId: item.id,
     title: item.title,
     author: '—',
     description: '',
     preview: toMediaUrl(item.preview),
-    tags: [] as string[],
+    tags: [],
     sizeMb: item.sizeMb,
     updatedAt: '',
-    folder: item.folder
-  }
-
-  switch (type) {
-    case 'video':
-      return { ...base, type, content: { videoFile: '', width: 0, height: 0, hasAudio: false } }
-    case 'web':
-      return { ...base, type, content: { entryFile: '', width: 0, height: 0 } }
-    case 'scene':
-      return { ...base, type, content: { sceneFile: '', width: 0, height: 0 } }
-    case 'playlist':
-      return { ...base, type, content: { children: [] } }
-    default:
-      return { ...base, type: 'application', content: { executable: '' } }
+    folder: item.folder,
+    type
   }
 }
 
@@ -95,10 +83,13 @@ export function useWorkshop() {
     return picked
   }, [scan])
 
-  const setFolderAndScan = useCallback(async (path: string): Promise<void> => {
-    await window.api.workshop.setFolder(path)
-    await scan()
-  }, [scan])
+  const setFolderAndScan = useCallback(
+    async (path: string): Promise<void> => {
+      await window.api.workshop.setFolder(path)
+      await scan()
+    },
+    [scan]
+  )
 
   const openSteamStore = useCallback((): void => {
     window.api.workshop.openSteamStore()

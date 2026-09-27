@@ -1,5 +1,5 @@
 import { spawn } from 'child_process'
-import { promises as fs } from 'fs'
+import { promises as fs, existsSync } from 'fs'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import {
@@ -15,7 +15,7 @@ import {
   resolvePreview,
   type WorkshopConfig
 } from './workshop'
-import { ensureUserSchema, getExtensionStatus, setExtensionVideoPath } from './gnomeExtension'
+import { ensureUserSchema, getExtensionStatus, run, setExtensionVideoPath } from './gnomeExtension'
 
 export interface BackendStatus {
   id: string
@@ -169,8 +169,26 @@ export async function installBackendTool(backendId: string): Promise<InstallResu
   })
 }
 
+const VIDEO_EXTENSIONS = [
+  '.mp4',
+  '.m4v',
+  '.webm',
+  '.mkv',
+  '.mov',
+  '.avi',
+  '.ts',
+  '.mts',
+  '.m2ts',
+  '.flv',
+  '.ogv',
+  '.wmv',
+  '.mpg',
+  '.mpeg',
+  '.3gp',
+  '.gif'
+]
+
 export async function findVideoFile(folder: string): Promise<string | null> {
-  const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mkv']
   try {
     const entries = await fs.readdir(folder, { withFileTypes: true })
     const video = entries.find(
@@ -184,26 +202,44 @@ export async function findVideoFile(folder: string): Promise<string | null> {
   return null
 }
 
-function run(
-  cmd: string,
-  args: string[]
-): Promise<{ code: number; stdout: string; stderr: string }> {
-  return new Promise((resolve) => {
-    const child = spawn(cmd, args)
-    let stdout = ''
-    let stderr = ''
-    child.stdout?.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString()
-    })
-    child.stderr?.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString()
-    })
-    child.on('error', () => resolve({ code: -1, stdout, stderr: `impossible de lancer ${cmd}` }))
-    child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }))
-  })
-}
-
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+const HTML_EXTENSIONS = ['.html', '.htm']
+
+/**
+ * Résout le fichier de rendu d'un wallpaper : vidéo (GStreamer) ou page web
+ * (WebKit dans le renderer). Un wallpaper web est détecté via project.json
+ * (champ « entry » ou « file ») ou par un index.html à la racine.
+ */
+export async function findRenderableFile(
+  folder: string
+): Promise<{ path: string; kind: 'video' | 'web' } | null> {
+  const video = await findVideoFile(folder)
+  if (video) return { path: video, kind: 'video' }
+
+  try {
+    const projectRaw = await fs.readFile(join(folder, 'project.json'), 'utf-8')
+    const project = JSON.parse(projectRaw) as Record<string, unknown>
+    for (const key of ['entry', 'file']) {
+      const value = project[key]
+      if (
+        typeof value === 'string' &&
+        HTML_EXTENSIONS.some((e) => value.toLowerCase().endsWith(e))
+      ) {
+        const candidate = join(folder, value)
+        if (existsSync(candidate)) return { path: candidate, kind: 'web' }
+      }
+    }
+  } catch {
+    // pas de project.json lisible — on tente index.html
+  }
+
+  for (const name of ['index.html', 'index.htm']) {
+    const candidate = join(folder, name)
+    if (existsSync(candidate)) return { path: candidate, kind: 'web' }
+  }
+  return null
+}
 
 const GNOME_BG_PATH = '/org/gnome/desktop/background'
 
@@ -295,12 +331,15 @@ export async function setWallpaper(payload: SetWallpaperPayload): Promise<SetWal
   }
 
   if (active.id === 'gnome-video') {
-    const videoFile = await findVideoFile(payload.folder)
-    if (!videoFile) {
-      return { ok: false, error: 'Aucun fichier vidéo trouvé dans le dossier du wallpaper.' }
+    const media = await findRenderableFile(payload.folder)
+    if (!media) {
+      return {
+        ok: false,
+        error: 'Aucun fichier vidéo ou page web trouvé dans le dossier du wallpaper.'
+      }
     }
     try {
-      await setExtensionVideoPath(videoFile, payload.monitorIndex ?? null)
+      await setExtensionVideoPath(media.path, payload.monitorIndex ?? null)
     } catch (err) {
       return {
         ok: false,

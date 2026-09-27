@@ -35,7 +35,7 @@ export function PlaybackSection({
           </Badge>
         </Group>
         <Text size="xs" c="anthracite.3">
-          Le backend GNOME Shell doit \u00eatre actif pour piloter la lecture.
+          Le backend GNOME Shell doit être actif pour piloter la lecture.
         </Text>
       </Stack>
     )
@@ -54,7 +54,7 @@ export function PlaybackSection({
         </Badge>
       </Group>
       <Text size="xs" c="anthracite.3">
-        Contr\u00f4les applicables au wallpaper en cours de rendu sur tous les \u00e9crans.
+        Contrôles applicables à l’ensemble des wallpapers en cours de rendu.
       </Text>
       <Stack gap="xs" mt={4}>
         <Switch
@@ -83,7 +83,7 @@ export function PlaybackSection({
               ) : (
                 <IconVolume size={14} stroke={1.5} />
               )}
-              <Text size="sm">{playback?.muted ? 'Son coup\u00e9' : 'Son actif'}</Text>
+              <Text size="sm">{playback?.muted ? 'Son coupé' : 'Son actif'}</Text>
             </Group>
           }
         />

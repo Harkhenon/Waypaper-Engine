@@ -3,6 +3,7 @@
 // écran) que l'extension GNOME Shell clone dans le fond.
 // Adapté de Hanabi (jeffshee/gnome-ext-hanabi) — GPL-3.0-or-later.
 imports.gi.versions.Gtk = '4.0'
+imports.gi.versions.WebKit = '6.0'
 const { GObject, Gtk, Gio, GLib, Gdk, Gst } = imports.gi
 
 const APPLICATION_ID = 'io.github.harkhenon.WaypaperRenderer'
@@ -15,6 +16,14 @@ try {
   console.warn('GstPlay indisponible, repli sur Gtk.MediaFile')
 }
 const haveGstPlay = GstPlay !== null
+
+let WebKit = null
+try {
+  WebKit = imports.gi.WebKit
+} catch (e) {
+  console.warn('WebKit 6 indisponible, wallpapers web désactivés')
+}
+const haveWebKit = WebKit !== null
 
 const settings = Gio.SettingsSchemaSource.get_default().lookup(SCHEMA_ID, false)
   ? Gio.Settings.new(SCHEMA_ID)
@@ -74,6 +83,8 @@ const buildWindowTitle = (index, geometry) => {
 
 // Crée (ou remplace) le player d'un écran. Retire l'écran de la map si le
 // chemin est vide (assignation retirée).
+const isWebPath = (path) => /\.(html?|xhtml)$/i.test(path)
+
 const setMonitorVideo = (index, path) => {
   const existing = players.get(index)
   if (existing) {
@@ -81,31 +92,69 @@ const setMonitorVideo = (index, path) => {
       // Assignation retirée : on stoppe le player ET on détruit la fenêtre —
       // sinon le clone du shell afficherait la dernière frame gelée.
       players.delete(index)
-      existing.media?.stream_unprepared()
-      existing.play?.stop()
-      existing.media?.pause()
+      stopPlayer(existing)
       destroyWindow(index)
       return
     }
     if (existing.path === path) return
-    existing.path = path
-    const file = Gio.File.new_for_path(path)
-    if (existing.play) existing.play.set_uri(file.get_uri())
-    else existing.media.file = file
-  } else {
-    if (!path) return
-    const entry = buildPlayer(path)
-    players.set(index, entry)
-    if (!windows.has(index)) createWindow(index)
-    const picture = buildPicture(entry.paintable)
-    attachWidget(index, picture)
+    players.delete(index)
+    stopPlayer(existing)
   }
+  if (!path) return
+  let entry
+  try {
+    entry = buildPlayer(path)
+  } catch (e) {
+    console.error(`contenu illisible pour l'écran ${index} : ${e}`)
+    destroyWindow(index)
+    return
+  }
+  players.set(index, entry)
+  if (!windows.has(index)) createWindow(index)
+  attachWidget(index, entry.widget)
   syncPlaybackState()
 }
 
-// Construit un player (GstPlay si dispo, sinon Gtk.MediaFile) et son
-// paintable partagé pour l'écran donné.
+const stopPlayer = (entry) => {
+  if (entry.view) {
+    try {
+      entry.view.terminate_web_process ? entry.view.terminate_web_process() : null
+    } catch (e) {
+      console.warn(`arrêt WebView : ${e}`)
+    }
+    return
+  }
+  entry.media?.stream_unprepared()
+  entry.play?.stop()
+  entry.media?.pause()
+}
+
+// Construit le contenu d'un écran : WebView pour une page web, player
+// vidéo (GstPlay si dispo, sinon Gtk.MediaFile) sinon.
 const buildPlayer = (path) => {
+  if (isWebPath(path)) return buildWebEntry(path)
+  return buildVideoEntry(path)
+}
+
+const buildWebEntry = (path) => {
+  if (!haveWebKit) throw new Error('WebKit 6 requis pour les wallpapers web')
+  const view = new WebKit.WebView({
+    hexpand: true,
+    vexpand: true
+  })
+  view.set_background_color(new Gdk.RGBA({ red: 0, green: 0, blue: 0, alpha: 1 }))
+  view.load_uri(Gio.File.new_for_path(path).get_uri())
+  view.connect('load-failed', (_v, _uri, err) => console.error(`chargement web : ${err}`))
+  return { path, view, widget: view }
+}
+
+const buildVideoEntry = (path) => {
+  const entry = buildVideoPlayer(path)
+  entry.widget = buildPicture(entry.paintable)
+  return entry
+}
+
+const buildVideoPlayer = (path) => {
   const file = Gio.File.new_for_path(path)
   if (haveGstPlay) {
     let sink = Gst.ElementFactory.make('gtk4paintablesink', 'gtk4paintablesink')

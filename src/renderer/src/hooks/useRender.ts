@@ -141,7 +141,6 @@ export function useRender() {
       return window.api.render.set({
         wallpaperId: payload.wallpaperId,
         folder: payload.folder,
-        file: '',
         monitorIndex: payload.monitorIndex ?? null
       })
     },

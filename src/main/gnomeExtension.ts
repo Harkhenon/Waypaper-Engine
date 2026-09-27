@@ -18,7 +18,7 @@ const RELOGIN_REQUIRED =
 
 const RUN_TIMEOUT_MS = 8000
 
-function run(
+export function run(
   cmd: string,
   args: string[]
 ): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -334,7 +334,7 @@ export async function setExtensionPlaybackValue(
 ): Promise<void> {
   const result = await run('gsettings', ['set', EXTENSION_SCHEMA, key, value ? 'true' : 'false'])
   if (result.code !== 0) {
-    throw new Error(`\u00c9chec gsettings ${key} : ${result.stderr.trim().slice(0, 200)}`)
+    throw new Error(`Échec gsettings ${key} : ${result.stderr.trim().slice(0, 200)}`)
   }
   console.log(`[gnome-extension] ${key} = ${value}`)
 }
@@ -401,8 +401,7 @@ export async function getExtensionMonitors(): Promise<ExtensionMonitor[]> {
 async function readStringSetting(key: 'video-path' | 'video-paths'): Promise<string> {
   const result = await run('gsettings', ['get', EXTENSION_SCHEMA, key])
   if (result.code !== 0) return ''
-  const raw = result.stdout.trim()
-  return raw.startsWith("'") && raw.endsWith("'") ? raw.slice(1, -1) : raw
+  return parseGVariantString(result.stdout.trim())
 }
 
 async function readVideoPaths(): Promise<Record<string, string>> {
@@ -420,7 +419,7 @@ async function writeVideoPaths(paths: Record<string, string>): Promise<void> {
   const value = Object.keys(paths).length === 0 ? '' : JSON.stringify(paths)
   const result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-paths', value])
   if (result.code !== 0) {
-    throw new Error(`\u00c9chec gsettings video-paths : ${result.stderr.trim().slice(0, 200)}`)
+    throw new Error(`Échec gsettings video-paths : ${result.stderr.trim().slice(0, 200)}`)
   }
 }
 
@@ -448,22 +447,22 @@ export async function setExtensionVideoPath(
       delete paths[String(monitorIndex)]
     }
     await writeVideoPaths(paths)
-    console.log(`[gnome-extension] video-paths[${monitorIndex}] = ${videoPath || '(retir\u00e9)'}`)
+    console.log(`[gnome-extension] video-paths[${monitorIndex}] = ${videoPath || '(retiré)'}`)
     return
   }
   const value = videoPath ?? ''
   let result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-path', value])
   if (result.code !== 0 && !(await schemaVisible())) {
-    // Sch\u00e9ma absent : l'installer puis retenter.
-    console.log('[gnome-extension] sch\u00e9ma absent, installation puis nouvelle tentative')
+    // Schéma absent : l'installer puis retenter.
+    console.log('[gnome-extension] schéma absent, installation puis nouvelle tentative')
     await ensureUserSchema()
     result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-path', value])
   }
   if (result.code !== 0) {
     console.error(
-      `[gnome-extension] gsettings set a \u00e9chou\u00e9 : ${result.stderr.trim().slice(0, 300)}`
+      `[gnome-extension] gsettings set a échoué : ${result.stderr.trim().slice(0, 300)}`
     )
-    throw new Error(`\u00c9chec gsettings : ${result.stderr.trim().slice(0, 200)}`)
+    throw new Error(`Échec gsettings : ${result.stderr.trim().slice(0, 200)}`)
   }
-  console.log(`[gnome-extension] video-path = ${value || '(arr\u00eat)'}`)
+  console.log(`[gnome-extension] video-path = ${value || '(arrêt)'}`)
 }
