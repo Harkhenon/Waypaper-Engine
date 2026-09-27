@@ -81,7 +81,7 @@ export async function installExtension(): Promise<InstallResult> {
   // remplace le contenu du dossier d'extension par celui du zip.
   const zipResult = await zipExtension(target)
   if (zipResult.ok && zipResult.zipPath) {
-    const install = await run('gnome-extensions', ['install', zipResult.zipPath])
+    const install = await run('gnome-extensions', ['install', '--force', zipResult.zipPath])
     if (install.code === 0) {
       const enable = await run('gnome-extensions', ['enable', EXTENSION_UUID])
       if (enable.code === 0) {
