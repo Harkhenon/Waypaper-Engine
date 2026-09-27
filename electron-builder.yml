@@ -1,0 +1,17 @@
+appId: com.harkhenon.waypaperengine
+productName: Waypaper Engine
+directories:
+  buildResources: resources
+  output: release
+files:
+  - out/**
+  - '!**/.DS_Store'
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Utility
+  maintainer: Harkhenon
+electronLanguages:
+  - en-US
+  - fr-FR
