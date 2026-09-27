@@ -68,6 +68,19 @@ function createWindow(): void {
 
 configureDisplayBackend()
 
+if (process.env['WAYPAPER_DISABLE_GPU'] === '1') {
+  console.log('[waypaper] WAYPAPER_DISABLE_GPU=1 : accélération GPU désactivée')
+  app.disableHardwareAcceleration()
+}
+
+app.on('child-process-gone', (_event, details) => {
+  console.error('[waypaper] process enfant terminé :', JSON.stringify(details, null, 2))
+})
+
+app.on('render-process-gone', (_event, _wc, details) => {
+  console.error('[waypaper] process renderer terminé :', JSON.stringify(details, null, 2))
+})
+
 void app.whenReady().then(() => {
   createWindow()
 
