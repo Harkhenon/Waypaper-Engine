@@ -138,44 +138,62 @@ export async function findVideoFile(folder: string): Promise<string | null> {
   return null
 }
 
-async function setGnomeBackground(imagePath: string): Promise<SetWallpaperResult> {
-  return new Promise<SetWallpaperResult>((resolve) => {
-    const uri = pathToFileURL(imagePath).href
-    const child = spawn('gsettings', [
-      'set',
-      'org.gnome.desktop.background',
-      'picture-uri',
-      uri
-    ])
-    let settled = false
-    child.on('error', (err) => {
-      if (!settled) {
-        settled = true
-        resolve({ ok: false, error: `gsettings indisponible : ${err.message}` })
-      }
-    })
+function runGsettings(args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('gsettings', args)
+    let stdout = ''
     let stderr = ''
+    child.stdout?.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString()
+    })
     child.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString()
     })
-    child.on('close', (code) => {
-      if (settled) return
-      settled = true
-      if (code !== 0) {
-        console.error(`[render:gnome] gsettings échec : ${stderr.trim()}`)
-        resolve({ ok: false, error: `gsettings a échoué (code ${code}).` })
-        return
-      }
-      const dark = spawn('gsettings', [
-        'set',
-        'org.gnome.desktop.background',
-        'picture-uri-dark',
-        uri
-      ])
-      dark.on('close', () => resolve({ ok: true }))
-      dark.on('error', () => resolve({ ok: true }))
-    })
+    child.on('error', reject)
+    child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }))
   })
+}
+
+const GNOME_BACKGROUND_KEYS = [
+  'picture-uri',
+  'picture-uri-dark'
+]
+
+async function setGnomeBackground(imagePath: string): Promise<SetWallpaperResult> {
+  const uri = pathToFileURL(imagePath).href
+  console.log(`[render:gnome] application de ${uri}`)
+
+  for (const key of GNOME_BACKGROUND_KEYS) {
+    const result = await runGsettings([
+      'set',
+      'org.gnome.desktop.background',
+      key,
+      uri
+    ])
+    if (result.code !== 0) {
+      console.error(`[render:gnome] gsettings ${key} échec : ${result.stderr.trim()}`)
+      return {
+        ok: false,
+        error: `gsettings ${key} a échoué (code ${result.code}).`
+      }
+    }
+  }
+
+  const readBack = await runGsettings([
+    'get',
+    'org.gnome.desktop.background',
+    'picture-uri'
+  ])
+  console.log(`[render:gnome] valeur relue : ${readBack.stdout.trim()}`)
+  if (!readBack.stdout.includes(imagePath)) {
+    console.error('[render:gnome] la valeur relue ne correspond pas au chemin appliqué')
+    return {
+      ok: false,
+      error: 'Le fond a été écrit mais la relecture ne correspond pas (profil dconf différent ?).'
+    }
+  }
+
+  return { ok: true }
 }
 
 export async function setWallpaper(payload: SetWallpaperPayload): Promise<SetWallpaperResult> {
