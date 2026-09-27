@@ -53,6 +53,7 @@ function createWindow(): void {
     minHeight: 600,
     minWidth: 900,
     show: false,
+    frame: false,
     autoHideMenuBar: true,
     backgroundColor: '#2b2f31',
     title: 'Waypaper Engine',

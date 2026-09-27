@@ -104,3 +104,18 @@ impact produit : le rendu des wallpapers est délégué aux backends
 d'affichage (ADR-004/006), l'UI n'est pas le chemin de rendu. À réexaminer
 quand Electron corrigera l'amont.
 
+
+## ADR-010 — Fenêtre frameless (frame: false)
+
+**Décision** : la fenêtre principale est créée sans frame natif
+(`frame: false`). La barre de titre sera rendue par l'UI Mantine (anthracite),
+avec les boutons minimiser/maximiser/fermer pilotés via l'API BrowserWindow
+(minimize, maximize, close) exposés par le preload.
+
+**Motif** : contournement du segfault Electron #49244 — l'init GTK du frame
+natif fait segfaulter `new BrowserWindow()` sur Ubuntu (message
+`Schema org.gnome.desktop.interface does not have key font-antialiasing`
+avant le crash). Correctif amont en cours (PR Electron #54365, branches
+43/44/45). L'app devra de toute façon offrir sa propre barre de titre
+cohérente avec le thème anthracite ; ce bug précipite une décision qui
+était déjà naturelle pour ce type d'application.
