@@ -104,10 +104,10 @@ export function LibraryView({ items, scanning, onSet, monitors }: LibraryViewPro
       <Text size="xs" c="anthracite.3">
         {filtered.length} wallpaper{filtered.length > 1 ? 's' : ''} affiché
         {filtered.length > 1 ? 's' : ''}
-        {filtered.some((w) => !WALLPAPER_TYPE_META[w.type].supported) && (
+        {filtered.some((w) => WALLPAPER_TYPE_META[w.type].support !== 'supported') && (
           <Text size="xs" c="anthracite.3" span>
             {' '}
-            — certains items ne sont pas encore supportés
+            — certains items sont partiellement ou non supportés (badge sur la carte)
           </Text>
         )}
       </Text>

@@ -30,7 +30,7 @@ interface WallpaperCardProps {
 }
 
 export function WallpaperCard({ wallpaper, onSet, monitors }: WallpaperCardProps) {
-  const supported = WALLPAPER_TYPE_META[wallpaper.type].supported
+  const canApply = WALLPAPER_TYPE_META[wallpaper.type].support !== 'unsupported'
 
   const handleSet = (): void => onSet(wallpaper)
   const handleSetOnMonitor = (index: number): void => onSet(wallpaper, index)
@@ -38,7 +38,7 @@ export function WallpaperCard({ wallpaper, onSet, monitors }: WallpaperCardProps
   return (
     <Card padding={0} withBorder className="wallpaper-card">
       <WallpaperPreview wallpaper={wallpaper} />
-      {supported && (
+      {canApply && (
         <Menu position="bottom-end" withinPortal shadow="md">
           <Menu.Target>
             <ActionIcon
