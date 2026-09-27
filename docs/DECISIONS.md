@@ -50,13 +50,21 @@ Moteur de rendu (renderer engine)   ← processus séparé
 Le rendu bureau doit être délégué à des backends spécialisés, pilotés par
 l'application.
 
-## ADR-005 — GNOME hors scope v1
+## ADR-005 — GNOME : fond statique en v1, vidéo hors scope
 
-**Décision** : GNOME n'est pas supporté en v1. Le support nécessiterait une
-extension GNOME Shell dédiée (pas de layer-shell, pas de fenêtre root).
+**Décision** : GNOME reçoit un support partiel en v1 via le backend
+`gnome-static` : l'aperçu du wallpaper est appliqué comme fond d'écran
+image via le portail `org.freedesktop.portal.Wallpaper` (mécanisme
+officiel des Paramètres GNOME), avec repli `dconf write` direct sur les
+deux clés `picture-uri`/`picture-uri-dark` (le schéma CLI gsettings peut
+être en retard sur le shell — constaté sur Ubuntu 26.04 / GNOME 50).
 
-**Motif** : coût élevé, audience wlroots/KDE/X11 prioritaire. Réévalué après
-la phase 2.
+Le rendu vidéo animé reste hors scope v1 : pas de layer-shell, pas de
+fenêtre root — une extension GNOME Shell dédiée serait nécessaire
+(piste post-phase 2).
+
+**Motif** : le fond statique couvre l'usage minimal sans dépendance ;
+la vidéo sur GNOME exige un chantier spécifique (extension shell).
 
 ## ADR-006 — Rendu vidéo délégué à mpvpaper (v1)
 
