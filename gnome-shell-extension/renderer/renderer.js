@@ -32,10 +32,10 @@ let media = null
 const parseArgs = (argv) => {
   let last = null
   for (const arg of argv) {
-    if (last === 'P') {
+    if (last === '-P') {
       // -P : chemin du code (inutilisé ici, réservé)
       last = null
-    } else if (last === 'F') {
+    } else if (last === '-F') {
       videoPath = arg
       last = null
     } else if (arg === '-P' || arg === '-F') {
@@ -167,7 +167,7 @@ Gst.init(null)
 parseArgs(ARGV)
 if (!videoPath) {
   console.error('renderer : aucun chemin de vidéo fourni (-F)')
-  System.exit(1)
+  imports.system.exit(1)
 }
 const app = new RendererApp({ application_id: APPLICATION_ID })
 app.run([])

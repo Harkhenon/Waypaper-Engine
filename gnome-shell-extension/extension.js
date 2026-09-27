@@ -159,6 +159,7 @@ export default class WaypaperExtension extends Extension {
     ]
     this._launcher = new RendererLauncher()
     this._windowManager.setLauncher(this._launcher)
+    this._rendererFailures = 0
     try {
       this._subprocess = this._launcher.spawnv(argv)
     } catch (e) {
@@ -176,6 +177,14 @@ export default class WaypaperExtension extends Extension {
       this._launcher = null
       this._windowManager.setLauncher(null)
       if (this._enabled && this._settings.get_string('video-path') !== '') {
+        // Anti-crash-loop : après 3 échecs consécutifs, on abandonne plutôt
+        // que de relancer GStreamer en boucle (fige la session).
+        this._rendererFailures = (this._rendererFailures ?? 0) + 1
+        if (this._rendererFailures >= 3) {
+          console.error('[waypaper] renderer planté 3 fois de suite — relance abandonnée')
+          this._rendererFailures = 0
+          return
+        }
         if (this._relaunchId) GLib.source_remove(this._relaunchId)
         this._relaunchId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
           this._relaunchId = 0
