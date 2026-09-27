@@ -15,7 +15,7 @@ import {
   resolvePreview,
   type WorkshopConfig
 } from './workshop'
-import { getExtensionStatus, setExtensionVideoPath } from './gnomeExtension'
+import { ensureUserSchema, getExtensionStatus, setExtensionVideoPath } from './gnomeExtension'
 
 export interface BackendStatus {
   id: string
@@ -69,11 +69,14 @@ export async function detectBackends(): Promise<DetectResult> {
 
   for (const backend of RENDER_BACKENDS) {
     if (backend.id === 'gnome-video') {
+      const gnome = desktop === 'gnome' && (await toolAvailable('gsettings'))
+      if (gnome) {
+        // Auto-réparation : le schéma doit exister pour piloter l'extension,
+        // même si l'extension elle-même a été installée hors de l'app.
+        await ensureUserSchema()
+      }
       const available =
-        desktop === 'gnome' &&
-        (await toolAvailable('gsettings')) &&
-        (await toolAvailable('gnome-extensions')) &&
-        (await getExtensionStatus()).enabled
+        gnome && (await toolAvailable('gnome-extensions')) && (await getExtensionStatus()).enabled
       backends.push({ id: backend.id, available })
       continue
     }

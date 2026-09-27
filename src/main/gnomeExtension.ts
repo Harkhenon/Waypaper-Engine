@@ -158,13 +158,27 @@ async function prepareStaging(): Promise<{ ok: boolean; staging?: string; error?
   if (compile.code !== 0) {
     return { ok: false, error: `Compilation du schéma échouée : ${compile.stderr.slice(0, 300)}` }
   }
-  // Le schéma doit aussi être visible hors du shell : le CLI gsettings et le
-  // renderer cherchent dans ~/.local/share/glib-2.0/schemas/, pas dans le
-  // dossier de l'extension (seul le shell y regarde via getSettings()).
+  const schema = await ensureUserSchema()
+  if (!schema.ok) {
+    return { ok: false, error: schema.error }
+  }
+  return { ok: true, staging }
+}
+
+/**
+ * Rend le schéma visible hors du shell : le CLI gsettings et le renderer
+ * cherchent dans ~/.local/share/glib-2.0/schemas/, pas dans le dossier de
+ * l'extension (seul le shell y regarde via getSettings()).
+ */
+export async function ensureUserSchema(): Promise<InstallResult> {
+  const source = extensionSourceDir()
+  const schemaXml = join(source, 'schemas', `${EXTENSION_SCHEMA}.gschema.xml`)
+  if (!existsSync(schemaXml)) {
+    return { ok: false, error: `Schéma source introuvable (${schemaXml}).` }
+  }
   const userSchemasDir = join(app.getPath('home'), '.local/share/glib-2.0/schemas')
   await fs.mkdir(userSchemasDir, { recursive: true })
-  const schemaFile = `${EXTENSION_SCHEMA}.gschema.xml`
-  await fs.copyFile(join(staging, 'schemas', schemaFile), join(userSchemasDir, schemaFile))
+  await fs.copyFile(schemaXml, join(userSchemasDir, `${EXTENSION_SCHEMA}.gschema.xml`))
   const userCompile = await run('glib-compile-schemas', [userSchemasDir])
   if (userCompile.code !== 0) {
     return {
@@ -172,7 +186,13 @@ async function prepareStaging(): Promise<{ ok: boolean; staging?: string; error?
       error: `Compilation du schéma utilisateur échouée : ${userCompile.stderr.slice(0, 300)}`
     }
   }
-  return { ok: true, staging }
+  console.log('[gnome-extension] schéma utilisateur installé')
+  return { ok: true }
+}
+
+async function schemaVisible(): Promise<boolean> {
+  const check = await run('gsettings', ['list-schemas'])
+  return check.code === 0 && check.stdout.split('\n').some((l) => l.trim() === EXTENSION_SCHEMA)
 }
 
 export async function installExtension(): Promise<InstallResult> {
@@ -258,7 +278,13 @@ export async function installExtension(): Promise<InstallResult> {
 
 export async function setExtensionVideoPath(videoPath: string | null): Promise<void> {
   const value = videoPath ?? ''
-  const result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-path', value])
+  let result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-path', value])
+  if (result.code !== 0 && !(await schemaVisible())) {
+    // Schéma absent : l'installer puis retenter.
+    console.log('[gnome-extension] schéma absent, installation puis nouvelle tentative')
+    await ensureUserSchema()
+    result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-path', value])
+  }
   if (result.code !== 0) {
     console.error(
       `[gnome-extension] gsettings set a échoué : ${result.stderr.trim().slice(0, 300)}`
