@@ -8,6 +8,9 @@ import { app } from 'electron'
 export const EXTENSION_UUID = 'waypaper-engine@harkhenon'
 export const EXTENSION_SCHEMA = 'com.harkhenon.waypaper'
 
+const DETECT_TIMEOUT_MS = 10000
+const DETECT_POLL_MS = 300
+
 function run(
   cmd: string,
   args: string[]
@@ -25,6 +28,10 @@ function run(
     child.on('error', () => resolve({ code: -1, stdout, stderr: `impossible de lancer ${cmd}` }))
     child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }))
   })
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function extensionSourceDir(): string {
@@ -60,83 +67,16 @@ export interface InstallResult {
   error?: string
 }
 
-export async function installExtension(): Promise<InstallResult> {
-  const source = extensionSourceDir()
-  if (!existsSync(join(source, 'metadata.json'))) {
-    return { ok: false, error: `Sources de l'extension introuvables (${source}).` }
-  }
-
-  // 1. Copie locale (supporte les shells qui n'ont pas l'API D-Bus d'install)
-  const target = installedExtensionDir()
-  await fs.rm(target, { recursive: true, force: true })
-  await cp(source, target, { recursive: true })
-  const compile = await run('glib-compile-schemas', [join(target, 'schemas')])
-  if (compile.code !== 0) {
-    return { ok: false, error: `Compilation du schéma échouée : ${compile.stderr.slice(0, 300)}` }
-  }
-
-  // 2. Enregistrement à chaud auprès du shell : l'extension n'est vue par
-  // gnome-extensions qu'après ce passage (ou un redémarrage du shell).
-  // On zippe le dossier cible (schémas déjà compilés) car l'installation
-  // remplace le contenu du dossier d'extension par celui du zip.
-  const zipResult = await zipExtension(target)
-  if (zipResult.ok && zipResult.zipPath) {
-    const install = await run('gnome-extensions', ['install', '--force', zipResult.zipPath])
-    if (install.code === 0) {
-      const enable = await run('gnome-extensions', ['enable', EXTENSION_UUID])
-      if (enable.code === 0) {
-        console.log('[gnome-extension] installée et activée (zip)')
-        return { ok: true }
-      }
-      return {
-        ok: false,
-        error: `Activation échouée : ${enable.stderr.slice(0, 300)}`
-      }
-    }
-    // install indisponible ou échoué (ex. shell non-EOG-style) : la copie
-    // locale reste en place, l'utilisateur devra se reconnecter.
-    console.log(
-      `[gnome-extension] gnome-extensions install a échoué (${install.stderr.trim().slice(0, 200)}) — la copie locale reste en place`
-    )
-  } else {
-    console.log(
-      `[gnome-extension] zip non créé (${zipResult.error ?? 'erreur inconnue'}) — copie locale uniquement`
-    )
-  }
-
-  // 3. Repli : activer directement (fonctionne si le shell a déjà scanné le dossier)
-  const enable = await run('gnome-extensions', ['enable', EXTENSION_UUID])
-  if (enable.code === 0) {
-    console.log('[gnome-extension] activée après copie locale')
-    return { ok: true }
-  }
-  return {
-    ok: false,
-    error:
-      "Extension copiée mais invisible pour le shell. Déconnectez-vous puis reconnectez-vous pour qu'elle apparaisse, puis activez-la."
-  }
-}
-
 interface ZipResult {
   ok: boolean
   zipPath?: string
   error?: string
 }
 
-async function zipExtension(source: string): Promise<ZipResult> {
-  const zipPath = join(app.getPath('userData'), `${EXTENSION_UUID}.zip`)
-  try {
-    await fs.rm(zipPath, { force: true })
-    await execAsync(`cd ${shq(source)} && zip -q -r ${shq(zipPath)} .`)
-    return { ok: true, zipPath }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
-  }
-}
-
 function shq(value: string): string {
-  const escaped = value.replaceAll(String.fromCharCode(39), String.fromCharCode(39, 92, 39, 39))
-  return String.fromCharCode(39) + escaped + String.fromCharCode(39)
+  const quote = String.fromCharCode(39)
+  const escaped = value.replaceAll(quote, String.fromCharCode(39, 92, 39, 39))
+  return quote + escaped + quote
 }
 
 function execAsync(cmd: string): Promise<void> {
@@ -146,6 +86,102 @@ function execAsync(cmd: string): Promise<void> {
       else resolve()
     })
   })
+}
+
+async function zipExtension(staging: string): Promise<ZipResult> {
+  const zipPath = join(app.getPath('userData'), `${EXTENSION_UUID}.zip`)
+  try {
+    await fs.rm(zipPath, { force: true })
+    await execAsync(`cd ${shq(staging)} && zip -q -r ${shq(zipPath)} .`)
+    return { ok: true, zipPath }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+async function extensionKnownToShell(): Promise<boolean> {
+  const list = await run('gnome-extensions', ['list'])
+  return list.code === 0 && list.stdout.split('\n').some((line) => line.trim() === EXTENSION_UUID)
+}
+
+async function waitForShellDetection(timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (await extensionKnownToShell()) return true
+    await sleep(DETECT_POLL_MS)
+  }
+  return false
+}
+
+async function enableExtension(): Promise<InstallResult> {
+  // Cycle disable/enable : recharge le code si l'extension tournait déjà.
+  await run('gnome-extensions', ['disable', EXTENSION_UUID])
+  const enable = await run('gnome-extensions', ['enable', EXTENSION_UUID])
+  if (enable.code === 0) return { ok: true }
+  return { ok: false, error: `Activation échouée : ${enable.stderr.slice(0, 300)}` }
+}
+
+export async function installExtension(): Promise<InstallResult> {
+  const source = extensionSourceDir()
+  if (!existsSync(join(source, 'metadata.json'))) {
+    return { ok: false, error: `Sources de l'extension introuvables (${source}).` }
+  }
+
+  // 1. Staging : copie des sources + compilation des schémas, sans toucher au
+  //    dossier installé (le modifier pendant la préparation décharge
+  //    l'extension et la fait disparaître de gnome-extensions).
+  const staging = join(app.getPath('userData'), 'extension-staging')
+  await fs.rm(staging, { recursive: true, force: true })
+  await cp(source, staging, { recursive: true })
+  const compile = await run('glib-compile-schemas', [join(staging, 'schemas')])
+  if (compile.code !== 0) {
+    return { ok: false, error: `Compilation du schéma échouée : ${compile.stderr.slice(0, 300)}` }
+  }
+
+  // 2. Installation officielle : le zip remplace le dossier installé et le
+  //    shell recharge l'extension via son monitor du dossier utilisateur.
+  const zipResult = await zipExtension(staging)
+  if (zipResult.ok && zipResult.zipPath) {
+    const install = await run('gnome-extensions', ['install', '--force', zipResult.zipPath])
+    if (install.code === 0) {
+      // Le shell détecte le nouveau dossier de façon asynchrone : attendre
+      // qu'il connaisse l'extension avant de pouvoir l'activer.
+      const known = await waitForShellDetection(DETECT_TIMEOUT_MS)
+      if (known) {
+        const result = await enableExtension()
+        if (result.ok) console.log('[gnome-extension] installée et activée (zip)')
+        return result
+      }
+      return {
+        ok: false,
+        error:
+          'Installée mais pas encore détectée par le shell — patientez quelques secondes puis recliquez, ou reconnectez-vous.'
+      }
+    }
+    console.log(
+      `[gnome-extension] gnome-extensions install a échoué (${install.stderr.trim().slice(0, 200)}) — repli copie manuelle`
+    )
+  } else {
+    console.log(
+      `[gnome-extension] zip non créé (${zipResult.error ?? 'erreur inconnue'}) — repli copie manuelle`
+    )
+  }
+
+  // 3. Repli : copie manuelle (schémas déjà compilés dans le staging).
+  const target = installedExtensionDir()
+  await fs.rm(target, { recursive: true, force: true })
+  await cp(staging, target, { recursive: true })
+  const known = await waitForShellDetection(DETECT_TIMEOUT_MS)
+  if (!known) {
+    return {
+      ok: false,
+      error:
+        "Extension copiée mais le shell ne la détecte pas — reconnectez-vous pour qu'elle apparaisse, puis activez-la."
+    }
+  }
+  const result = await enableExtension()
+  if (result.ok) console.log('[gnome-extension] activée (copie manuelle)')
+  return result
 }
 
 export async function setExtensionVideoPath(videoPath: string | null): Promise<void> {
