@@ -67,6 +67,11 @@ function createWindow(): void {
   win.on('ready-to-show', () => {
     console.log('[waypaper] fenêtre : ready-to-show')
     win.show()
+    win.focus()
+    console.log(
+      `[waypaper] après show : visible=${win.isVisible()} ` +
+        `bounds=${JSON.stringify(win.getBounds())}`
+    )
   })
 
   win.on('close', () => {
