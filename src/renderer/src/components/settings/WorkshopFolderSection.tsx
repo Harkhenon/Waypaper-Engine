@@ -1,5 +1,5 @@
-import { Alert, Button, Divider, Select, Stack, Text, Title } from '@mantine/core'
-import { IconBrandSteam, IconFolder, IconRefresh } from '@tabler/icons-react'
+import { Alert, Button, Divider, Group, Select, Stack, Text, Title } from '@mantine/core'
+import { IconBrandSteam, IconFolder, IconRefresh, IconRefreshDot } from '@tabler/icons-react'
 import { STEAM_STORE_URL, WORKSHOP_APP_ID } from '../../data/workshop'
 import type { DetectedWorkshopFolder } from '../../../../preload/index'
 
@@ -12,6 +12,7 @@ interface WorkshopFolderSectionProps {
   onSelectFolder: (value: string | null) => void
   onScan: () => void
   onOpenSteam: () => void
+  onRedetect: () => void
 }
 
 export function WorkshopFolderSection({
@@ -22,7 +23,8 @@ export function WorkshopFolderSection({
   onPickFolder,
   onSelectFolder,
   onScan,
-  onOpenSteam
+  onOpenSteam,
+  onRedetect
 }: WorkshopFolderSectionProps) {
   const currentDetected = detectedFolders.find((f) => f.path === folder)
 
@@ -84,15 +86,25 @@ export function WorkshopFolderSection({
         Choisir un dossier personnalisé…
       </Button>
 
-      <Button
-        variant="light"
-        leftSection={<IconRefresh size={16} stroke={1.5} />}
-        onClick={onScan}
-        loading={scanning}
-        disabled={!folder}
-      >
-        Rescanner le dossier
-      </Button>
+      <Group>
+        <Button
+          variant="light"
+          leftSection={<IconRefresh size={16} stroke={1.5} />}
+          onClick={onScan}
+          loading={scanning}
+          disabled={!folder}
+        >
+          Rescanner le dossier
+        </Button>
+        <Button
+          variant="light"
+          leftSection={<IconRefreshDot size={16} stroke={1.5} />}
+          onClick={onRedetect}
+          loading={scanning}
+        >
+          Relancer la détection
+        </Button>
+      </Group>
 
       {folder && (
         <>

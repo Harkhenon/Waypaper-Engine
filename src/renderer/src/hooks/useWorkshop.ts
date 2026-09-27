@@ -104,6 +104,11 @@ export function useWorkshop() {
     setDetectedFolders(detected)
   }, [])
 
+  const redetect = useCallback(async (): Promise<void> => {
+    await refreshDetected()
+    await scan()
+  }, [refreshDetected, scan])
+
   return {
     folder,
     items,
@@ -113,6 +118,7 @@ export function useWorkshop() {
     pickAndSetFolder,
     setFolderAndScan,
     openSteamStore,
-    refreshDetected
+    refreshDetected,
+    redetect
   }
 }

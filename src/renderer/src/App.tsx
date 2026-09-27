@@ -38,6 +38,7 @@ export default function App() {
                 onSelectWorkshopFolder={(path) => void workshop.setFolderAndScan(path)}
                 onScanWorkshop={() => void workshop.scan()}
                 onOpenSteamStore={workshop.openSteamStore}
+                onRedetectWorkshop={() => void workshop.redetect()}
               />
             )}
           </Box>

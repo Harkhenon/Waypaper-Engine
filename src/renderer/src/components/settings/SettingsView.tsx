@@ -13,6 +13,7 @@ interface SettingsViewProps {
   onSelectWorkshopFolder: (path: string) => void
   onScanWorkshop: () => void
   onOpenSteamStore: () => void
+  onRedetectWorkshop: () => void
 }
 
 const BACKEND_OPTIONS = DISPLAY_BACKENDS.map((b) => ({
@@ -28,7 +29,8 @@ export function SettingsView({
   onPickWorkshopFolder,
   onSelectWorkshopFolder,
   onScanWorkshop,
-  onOpenSteamStore
+  onOpenSteamStore,
+  onRedetectWorkshop
 }: SettingsViewProps) {
   return (
     <Stack gap="md" maw={560}>
@@ -42,6 +44,7 @@ export function SettingsView({
         onSelectFolder={(value) => value && onSelectWorkshopFolder(value)}
         onScan={onScanWorkshop}
         onOpenSteam={onOpenSteamStore}
+        onRedetect={onRedetectWorkshop}
       />
       <Divider />
       <Select
