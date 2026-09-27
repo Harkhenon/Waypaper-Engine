@@ -77,6 +77,13 @@ en lecture seule, pour extraire les métadonnées (`title`, `preview`, `type`,
 **Motif** : l'import Workshop est inutilisable sans comprendre le format ;
 le rendu des scènes est un chantier séparé (moteur WebGL).
 
+**Implémentation** (`src/main/pkg.ts`) : conteneur binaire — magic à taille
+`int32` (ex. `PKGV0005`), nombre d'entrées `int32`, puis par entrée : chemin
+à taille `int32` (UTF-8), offset `int32`, longueur `int32` ; les données
+suivent la table. Le scanner Workshop utilise ce parseur comme repli quand
+`project.json` n'est pas présent en clair dans le dossier de l'item. Format
+documenté par rétro-ingénierie FOSS (RePKG, wallpaper-engine-kde-plugin).
+
 ## ADR-008 — Composants externes interdits (règles projet)
 
 **Décision** : aucune fonction de requête API ou appel extérieur dans le code

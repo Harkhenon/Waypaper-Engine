@@ -2,6 +2,7 @@ import { app } from 'electron'
 import { promises as fs } from 'fs'
 import { join, resolve } from 'path'
 import { DEFAULT_WORKSHOP_FOLDERS, WORKSHOP_APP_ID } from '../shared/workshop'
+import { findPkgFile, readProjectFromPkg } from './pkg'
 
 interface WorkshopConfig {
   folder: string | null
@@ -51,6 +52,37 @@ async function folderSizeMb(folder: string): Promise<number> {
   return Math.round(total / (1024 * 1024))
 }
 
+async function readProjectJson(itemFolder: string): Promise<Record<string, unknown> | null> {
+  try {
+    const projectRaw = await fs.readFile(join(itemFolder, 'project.json'), 'utf-8')
+    return JSON.parse(projectRaw) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+async function readProjectMetadata(itemFolder: string): Promise<Record<string, unknown> | null> {
+  const plain = await readProjectJson(itemFolder)
+  if (plain) return plain
+
+  try {
+    const pkgPath = await findPkgFile(itemFolder)
+    if (pkgPath) return await readProjectFromPkg(pkgPath)
+  } catch {
+    // pack illisible — on retombe sur les métadonnées minimales
+  }
+  return null
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    const stat = await fs.stat(path)
+    return stat.isFile()
+  } catch {
+    return false
+  }
+}
+
 export async function scanWorkshopFolder(folder: string): Promise<ScannedItem[]> {
   const resolved = resolve(folder.replace(/^~(?=$|\/)/, app.getPath('home')))
   const entries = await fs.readdir(resolved, { withFileTypes: true })
@@ -59,30 +91,25 @@ export async function scanWorkshopFolder(folder: string): Promise<ScannedItem[]>
   for (const entry of entries) {
     if (!entry.isDirectory()) continue
     const itemFolder = join(resolved, entry.name)
-    try {
-      const projectRaw = await fs.readFile(join(itemFolder, 'project.json'), 'utf-8')
-      const project = JSON.parse(projectRaw) as Record<string, unknown>
-      items.push({
-        id: entry.name,
-        folder: itemFolder,
-        title: typeof project.title === 'string' ? project.title : entry.name,
-        type: typeof project.type === 'string' ? project.type : 'unknown',
-        preview:
-          typeof project.preview === 'string'
-            ? join(itemFolder, project.preview)
-            : null,
-        sizeMb: await folderSizeMb(itemFolder)
-      })
-    } catch {
-      items.push({
-        id: entry.name,
-        folder: itemFolder,
-        title: entry.name,
-        type: 'unknown',
-        preview: null,
-        sizeMb: await folderSizeMb(itemFolder)
-      })
-    }
+    const project = await readProjectMetadata(itemFolder)
+    const preview =
+      project && typeof project.preview === 'string' && project.preview
+        ? join(itemFolder, project.preview)
+        : null
+    items.push({
+      id: entry.name,
+      folder: itemFolder,
+      title:
+        project && typeof project.title === 'string' && project.title
+          ? project.title
+          : entry.name,
+      type:
+        project && typeof project.type === 'string' && project.type
+          ? project.type
+          : 'unknown',
+      preview: preview && (await fileExists(preview)) ? preview : null,
+      sizeMb: await folderSizeMb(itemFolder)
+    })
   }
   return items
 }
