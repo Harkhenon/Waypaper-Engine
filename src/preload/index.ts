@@ -1,4 +1,10 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
+
+const windowApi = {
+  minimize: (): void => ipcRenderer.send('window:minimize'),
+  toggleMaximize: (): void => ipcRenderer.send('window:maximize'),
+  close: (): void => ipcRenderer.send('window:close')
+}
 
 const testApi = {
   ping: (): string => {
@@ -9,6 +15,7 @@ const testApi = {
 }
 
 const api = {
+  window: windowApi,
   test: testApi
 }
 

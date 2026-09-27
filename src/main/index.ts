@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 
@@ -51,6 +51,16 @@ function createWindow(): void {
   win.on('ready-to-show', () => {
     win.show()
   })
+
+  ipcMain.on('window:minimize', () => win.minimize())
+  ipcMain.on('window:maximize', () => {
+    if (win.isMaximized()) {
+      win.unmaximize()
+    } else {
+      win.maximize()
+    }
+  })
+  ipcMain.on('window:close', () => win.close())
 
   win.webContents.setWindowOpenHandler((details) => {
     void shell.openExternal(details.url)
