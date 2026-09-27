@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Grid, Select, Stack, Text, TextInput } from '@mantine/core'
+import { Center, Grid, Loader, Select, Stack, Text, TextInput, Title } from '@mantine/core'
 import { IconSearch } from '@tabler/icons-react'
 import type { Wallpaper } from '../../data/wallpaper'
 import { WALLPAPER_TYPE_META } from '../../data/wallpaper'
-import { MOCK_WALLPAPERS } from '../../data/mock/wallpapers'
+import { toWallpaper, type ScannedWorkshopItem } from '../../hooks/useWorkshop'
 import { SORT_OPTIONS, TYPE_FILTER_OPTIONS, type SortValue, type TypeFilterValue } from '../../data/filters'
 import WallpaperCard from './WallpaperCard'
 
@@ -39,14 +39,21 @@ function applyFilters(
   return sorted
 }
 
-export function LibraryView() {
+interface LibraryViewProps {
+  items: ScannedWorkshopItem[]
+  scanning: boolean
+}
+
+export function LibraryView({ items, scanning }: LibraryViewProps) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilterValue>('all')
   const [sort, setSort] = useState<SortValue>('recent')
 
+  const wallpapers = useMemo(() => items.map(toWallpaper), [items])
+
   const filtered = useMemo(
-    () => applyFilters(MOCK_WALLPAPERS, search, typeFilter, sort),
-    [search, typeFilter, sort]
+    () => applyFilters(wallpapers, search, typeFilter, sort),
+    [wallpapers, search, typeFilter, sort]
   )
 
   return (
@@ -97,13 +104,38 @@ export function LibraryView() {
         )}
       </Text>
 
-      <Grid gap="md">
-        {filtered.map((wallpaper) => (
-          <Grid.Col key={wallpaper.id} span={{ base: 12, sm: 6, md: 4, lg: 3 }}>
-            <WallpaperCard wallpaper={wallpaper} />
-          </Grid.Col>
-        ))}
-      </Grid>
+      {scanning && (
+        <Center>
+          <Loader color="anthracite.3" />
+        </Center>
+      )}
+
+      {!scanning && filtered.length === 0 && (
+        <Center h={300}>
+          <Stack align="center" gap="xs">
+            <Title order={4} c="anthracite.2">
+              {items.length === 0
+                ? 'Aucun wallpaper importé'
+                : 'Aucun résultat'}
+            </Title>
+            <Text size="sm" c="anthracite.3">
+              {items.length === 0
+                ? 'Configurez le dossier Workshop dans les Paramètres pour importer vos wallpapers.'
+                : 'Essayez une autre recherche ou un autre filtre.'}
+            </Text>
+          </Stack>
+        </Center>
+      )}
+
+      {!scanning && filtered.length > 0 && (
+        <Grid gap="md">
+          {filtered.map((wallpaper) => (
+            <Grid.Col key={wallpaper.id} span={{ base: 12, sm: 6, md: 4, lg: 3 }}>
+              <WallpaperCard wallpaper={wallpaper} />
+            </Grid.Col>
+          ))}
+        </Grid>
+      )}
     </Stack>
   )
 }

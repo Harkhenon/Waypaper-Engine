@@ -1,4 +1,5 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, dialog, ipcMain } from 'electron'
+import { readConfig, scanWorkshopFolder, writeConfig } from './workshop'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 
@@ -30,6 +31,35 @@ function configureDisplayBackend(): void {
   app.commandLine.appendSwitch('disable-vulkan-surface')
   app.commandLine.appendSwitch('disable-vulkan-native-surface')
 }
+
+ipcMain.handle('workshop:get-folder', () => readConfig())
+
+ipcMain.handle('workshop:set-folder', async (_event, folder: string | null) => {
+  await writeConfig({ folder })
+  return folder
+})
+
+ipcMain.handle('workshop:pick-folder', async () => {
+  const result = await dialog.showOpenDialog({
+    title: "Choisir le dossier de contenu Wallpaper Engine (431960)",
+    properties: ['openDirectory']
+  })
+  return result.canceled ? null : result.filePaths[0]
+})
+
+ipcMain.handle('workshop:scan', async () => {
+  const config = await readConfig()
+  if (!config.folder) {
+    return { folder: null, items: [] as Awaited<ReturnType<typeof scanWorkshopFolder>> }
+  }
+  try {
+    const items = await scanWorkshopFolder(config.folder)
+    return { folder: config.folder, items }
+  } catch (error) {
+    console.error('[waypaper] scan Workshop échoué :', error)
+    return { folder: config.folder, items: [] as Awaited<ReturnType<typeof scanWorkshopFolder>> }
+  }
+})
 
 function createWindow(): void {
   const win = new BrowserWindow({

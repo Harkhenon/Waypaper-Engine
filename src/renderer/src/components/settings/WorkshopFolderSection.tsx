@@ -1,64 +1,78 @@
-import { useState } from 'react'
-import { Divider, Select, Stack, Text, TextInput, Title } from '@mantine/core'
-import { IconFolder } from '@tabler/icons-react'
+import { Button, Divider, Select, Stack, Text, Title } from '@mantine/core'
+import { IconFolder, IconRefresh } from '@tabler/icons-react'
 import {
   DEFAULT_WORKSHOP_FOLDERS,
   WORKSHOP_APP_ID
 } from '../../data/workshop'
 
-const FOLDER_OPTIONS = DEFAULT_WORKSHOP_FOLDERS.map((f) => ({
-  value: f.value,
-  label: f.label
-}))
+interface WorkshopFolderSectionProps {
+  folder: string | null
+  scanning: boolean
+  itemCount: number
+  onPickFolder: () => void
+  onScan: () => void
+}
 
-export function WorkshopFolderSection() {
-  const [folder, setFolder] = useState<string | null>(
-    DEFAULT_WORKSHOP_FOLDERS[0].value
+export function WorkshopFolderSection({
+  folder,
+  scanning,
+  itemCount,
+  onPickFolder,
+  onScan
+}: WorkshopFolderSectionProps) {
+  const matchingDefault = DEFAULT_WORKSHOP_FOLDERS.find((f) =>
+    folder ? f.path.replace(/^~/, '') !== '' && folder.includes('431960') && folder.startsWith(f.path.replace(/^~.*/, '')) : false
   )
-  const [customPath, setCustomPath] = useState('')
-
-  const selected = DEFAULT_WORKSHOP_FOLDERS.find((f) => f.value === folder)
-
-  const handleFolderChange = (value: string | null): void => {
-    setFolder(value)
-    console.log(`[test] dossier Workshop sélectionné : ${value}`)
-  }
-
-  const handleCustomChange = (path: string): void => {
-    setCustomPath(path)
-    console.log(`[test] chemin Workshop personnalisé : ${path}`)
-  }
 
   return (
     <Stack gap="sm">
       <Title order={4}>Import du Workshop</Title>
       <Select
-        label="Dossier d'installation"
+        label="Dossier d'installation détecté"
         description="Dossiers d'installation par défaut de Wallpaper Engine (Steam)"
-        data={FOLDER_OPTIONS}
-        value={folder}
-        onChange={handleFolderChange}
-        allowDeselect={false}
+        data={DEFAULT_WORKSHOP_FOLDERS.map((f) => ({
+          value: f.value,
+          label: f.label
+        }))}
+        value={matchingDefault?.value ?? null}
+        placeholder="Aucune installation par défaut sélectionnée"
         leftSection={<IconFolder size={16} stroke={1.5} />}
+        readOnly
       />
-      {selected && (
+      {folder ? (
         <Text size="xs" c="anthracite.3" ff="monospace">
-          {selected.path}
+          {folder}
+        </Text>
+      ) : (
+        <Text size="xs" c="anthracite.3">
+          Aucun dossier Workshop configuré — cliquez sur Parcourir pour choisir
+          le dossier de contenu {WORKSHOP_APP_ID}.
         </Text>
       )}
-      <TextInput
-        label="Dossier personnalisé"
-        description="Chemin complet vers un dossier de contenu 431960"
-        placeholder="/chemin/vers/steamapps/workshop/content/431960"
-        value={customPath}
-        onChange={(e) => handleCustomChange(e.currentTarget.value)}
-      />
-      <Divider />
-      <Text size="xs" c="anthracite.3">
-        AppID Workshop : {WORKSHOP_APP_ID} — la détection réelle des dossiers,
-        le scan et la persistance du choix arriveront avec les canaux IPC
-        dédiés.
-      </Text>
+      <Button
+        leftSection={<IconFolder size={16} stroke={1.5} />}
+        onClick={onPickFolder}
+      >
+        Parcourir…
+      </Button>
+      <Button
+        variant="light"
+        leftSection={<IconRefresh size={16} stroke={1.5} />}
+        onClick={onScan}
+        loading={scanning}
+        disabled={!folder}
+      >
+        Rescanner le dossier
+      </Button>
+      {folder && (
+        <Divider />
+      )}
+      {folder && (
+        <Text size="xs" c="anthracite.3">
+          {itemCount} item{itemCount > 1 ? 's' : ''} détecté
+          {itemCount > 1 ? 's' : ''} dans le dossier configuré.
+        </Text>
+      )}
     </Stack>
   )
 }

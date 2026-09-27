@@ -1,5 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+export interface ScannedWorkshopItem {
+  id: string
+  folder: string
+  title: string
+  type: string
+  preview: string | null
+  sizeMb: number
+}
+
+export interface WorkshopScanResult {
+  folder: string | null
+  items: ScannedWorkshopItem[]
+}
+
 const windowApi = {
   minimize: (): void => ipcRenderer.send('window:minimize'),
   toggleMaximize: (): void => ipcRenderer.send('window:maximize'),
@@ -18,6 +32,15 @@ const wallpaperApi = {
   }
 }
 
+const workshopApi = {
+  getFolder: (): Promise<{ folder: string | null }> =>
+    ipcRenderer.invoke('workshop:get-folder'),
+  setFolder: (folder: string | null): Promise<string | null> =>
+    ipcRenderer.invoke('workshop:set-folder', folder),
+  pickFolder: (): Promise<string | null> => ipcRenderer.invoke('workshop:pick-folder'),
+  scan: (): Promise<WorkshopScanResult> => ipcRenderer.invoke('workshop:scan')
+}
+
 const testApi = {
   ping: (): string => {
     const message = 'pong'
@@ -29,6 +52,7 @@ const testApi = {
 const api = {
   window: windowApi,
   wallpaper: wallpaperApi,
+  workshop: workshopApi,
   test: testApi
 }
 
