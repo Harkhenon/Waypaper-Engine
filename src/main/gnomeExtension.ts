@@ -11,6 +11,11 @@ export const EXTENSION_SCHEMA = 'com.harkhenon.waypaper'
 const DETECT_TIMEOUT_MS = 10000
 const DETECT_POLL_MS = 300
 
+const RELOGIN_REQUIRED =
+  'Nouvelle version installée — déconnectez-vous puis reconnectez-vous ' +
+  'pour que GNOME Shell la charge (le shell ne recharge pas une extension ' +
+  'active sans reconnexion).'
+
 function run(
   cmd: string,
   args: string[]
@@ -42,6 +47,20 @@ function installedExtensionDir(): string {
   return join(app.getPath('home'), '.local/share/gnome-shell/extensions', EXTENSION_UUID)
 }
 
+interface MetadataInfo {
+  version: number
+}
+
+async function readMetadata(dir: string): Promise<MetadataInfo | null> {
+  try {
+    const raw = await fs.readFile(join(dir, 'metadata.json'), 'utf-8')
+    const parsed = JSON.parse(raw) as { version?: number }
+    return { version: typeof parsed.version === 'number' ? parsed.version : 0 }
+  } catch {
+    return null
+  }
+}
+
 export interface GnomeExtensionStatus {
   installed: boolean
   enabled: boolean
@@ -49,22 +68,34 @@ export interface GnomeExtensionStatus {
   error?: string
 }
 
+async function shellExtensionInfo(): Promise<{
+  known: boolean
+  enabled: boolean
+}> {
+  const listAll = await run('gnome-extensions', ['list'])
+  const known =
+    listAll.code === 0 && listAll.stdout.split('\n').some((line) => line.trim() === EXTENSION_UUID)
+  const listEnabled = await run('gnome-extensions', ['list', '--enabled'])
+  const enabled =
+    listEnabled.code === 0 &&
+    listEnabled.stdout.split('\n').some((line) => line.trim() === EXTENSION_UUID)
+  return { known, enabled }
+}
+
 export async function getExtensionStatus(): Promise<GnomeExtensionStatus> {
   const installedDir = installedExtensionDir()
-  if (!existsSync(join(installedDir, 'metadata.json'))) {
+  const meta = await readMetadata(installedDir)
+  if (!meta) {
     return { installed: false, enabled: false, version: null }
   }
-  const list = await run('gnome-extensions', ['list', '--enabled'])
-  if (list.code !== 0) {
-    return { installed: true, enabled: false, version: null, error: list.stderr.slice(0, 200) }
-  }
-  const enabled = list.stdout.split('\n').some((line) => line.trim() === EXTENSION_UUID)
-  return { installed: true, enabled, version: 1 }
+  const info = await shellExtensionInfo()
+  return { installed: true, enabled: info.enabled, version: meta.version }
 }
 
 export interface InstallResult {
   ok: boolean
   error?: string
+  reloginRequired?: boolean
 }
 
 interface ZipResult {
@@ -99,37 +130,27 @@ async function zipExtension(staging: string): Promise<ZipResult> {
   }
 }
 
-async function extensionKnownToShell(): Promise<boolean> {
-  const list = await run('gnome-extensions', ['list'])
-  return list.code === 0 && list.stdout.split('\n').some((line) => line.trim() === EXTENSION_UUID)
-}
-
 async function waitForShellDetection(timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    if (await extensionKnownToShell()) return true
+    const info = await shellExtensionInfo()
+    if (info.known) return true
     await sleep(DETECT_POLL_MS)
   }
   return false
 }
 
-async function enableExtension(): Promise<InstallResult> {
-  // Cycle disable/enable : recharge le code si l'extension tournait déjà.
-  await run('gnome-extensions', ['disable', EXTENSION_UUID])
+async function enableViaCli(): Promise<InstallResult> {
   const enable = await run('gnome-extensions', ['enable', EXTENSION_UUID])
   if (enable.code === 0) return { ok: true }
   return { ok: false, error: `Activation échouée : ${enable.stderr.slice(0, 300)}` }
 }
 
-export async function installExtension(): Promise<InstallResult> {
+async function prepareStaging(): Promise<{ ok: boolean; staging?: string; error?: string }> {
   const source = extensionSourceDir()
   if (!existsSync(join(source, 'metadata.json'))) {
     return { ok: false, error: `Sources de l'extension introuvables (${source}).` }
   }
-
-  // 1. Staging : copie des sources + compilation des schémas, sans toucher au
-  //    dossier installé (le modifier pendant la préparation décharge
-  //    l'extension et la fait disparaître de gnome-extensions).
   const staging = join(app.getPath('userData'), 'extension-staging')
   await fs.rm(staging, { recursive: true, force: true })
   await cp(source, staging, { recursive: true })
@@ -137,19 +158,51 @@ export async function installExtension(): Promise<InstallResult> {
   if (compile.code !== 0) {
     return { ok: false, error: `Compilation du schéma échouée : ${compile.stderr.slice(0, 300)}` }
   }
+  return { ok: true, staging }
+}
 
-  // 2. Installation officielle : le zip remplace le dossier installé et le
-  //    shell recharge l'extension via son monitor du dossier utilisateur.
+export async function installExtension(): Promise<InstallResult> {
+  // État actuel : le shell connaît-il l'extension, est-elle active ?
+  const before = await shellExtensionInfo()
+
+  // 1. Rien à faire si l'extension est déjà active avec la même version.
+  if (before.enabled) {
+    const installedMeta = await readMetadata(installedExtensionDir())
+    const sourceMeta = await readMetadata(extensionSourceDir())
+    if (installedMeta && sourceMeta && installedMeta.version === sourceMeta.version) {
+      console.log('[gnome-extension] déjà active et à jour')
+      return { ok: true }
+    }
+  }
+
+  const stagingResult = await prepareStaging()
+  if (!stagingResult.ok || !stagingResult.staging) {
+    return { ok: false, error: stagingResult.error }
+  }
+  const staging = stagingResult.staging
+
+  // 2. Installation officielle via zip — le shell remplace le dossier et
+  //    décharge l'extension chargée (elle reviendra à la reconnexion).
   const zipResult = await zipExtension(staging)
   if (zipResult.ok && zipResult.zipPath) {
     const install = await run('gnome-extensions', ['install', '--force', zipResult.zipPath])
     if (install.code === 0) {
-      // Le shell détecte le nouveau dossier de façon asynchrone : attendre
-      // qu'il connaisse l'extension avant de pouvoir l'activer.
+      if (before.enabled) {
+        // Le shell a déchargé l'ancienne version : reconnexion requise pour
+        // charger la nouvelle. On réactive pour la prochaine session.
+        await run('gnome-extensions', ['enable', EXTENSION_UUID])
+        console.log('[gnome-extension] nouvelle version installée — reconnexion requise')
+        return { ok: true, reloginRequired: true, error: RELOGIN_REQUIRED }
+      }
+      // Première installation : le shell découvre le dossier, on attend
+      // qu'il le voie puis on active.
       const known = await waitForShellDetection(DETECT_TIMEOUT_MS)
       if (known) {
-        const result = await enableExtension()
-        if (result.ok) console.log('[gnome-extension] installée et activée (zip)')
+        const result = await enableViaCli()
+        if (result.ok) {
+          console.log('[gnome-extension] installée et activée (zip)')
+          return { ok: true }
+        }
         return result
       }
       return {
@@ -171,6 +224,11 @@ export async function installExtension(): Promise<InstallResult> {
   const target = installedExtensionDir()
   await fs.rm(target, { recursive: true, force: true })
   await cp(staging, target, { recursive: true })
+  if (before.enabled) {
+    await run('gnome-extensions', ['enable', EXTENSION_UUID])
+    console.log('[gnome-extension] nouvelle version copiée — reconnexion requise')
+    return { ok: true, reloginRequired: true, error: RELOGIN_REQUIRED }
+  }
   const known = await waitForShellDetection(DETECT_TIMEOUT_MS)
   if (!known) {
     return {
@@ -179,7 +237,7 @@ export async function installExtension(): Promise<InstallResult> {
         "Extension copiée mais le shell ne la détecte pas — reconnectez-vous pour qu'elle apparaisse, puis activez-la."
     }
   }
-  const result = await enableExtension()
+  const result = await enableViaCli()
   if (result.ok) console.log('[gnome-extension] activée (copie manuelle)')
   return result
 }

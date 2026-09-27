@@ -100,7 +100,15 @@ export default function App() {
                 onInstallGnomeExtension={() => {
                   void (async () => {
                     const result = await render.installExtension()
-                    if (result.ok) {
+                    if (result.ok && result.reloginRequired) {
+                      notifications.show({
+                        title: 'Mise à jour installée',
+                        message:
+                          "Reconnectez-vous (fin de session puis login) pour que GNOME Shell charge la nouvelle version de l'extension.",
+                        color: 'orange',
+                        autoClose: 8000
+                      })
+                    } else if (result.ok) {
                       notifications.show({
                         title: 'Extension installée',
                         message:

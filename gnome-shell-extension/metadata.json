@@ -3,9 +3,18 @@
   "description": "Vidéo de fond d'écran pour GNOME, pilotée par Waypaper Engine",
   "uuid": "waypaper-engine@harkhenon",
   "settings-schema": "com.harkhenon.waypaper",
-  "shell-version": ["45", "46", "47", "48", "49", "50"],
-  "session-modes": ["user"],
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48",
+    "49",
+    "50"
+  ],
+  "session-modes": [
+    "user"
+  ],
   "wayland-compatible": true,
   "url": "https://github.com/Harkhenon/Waypaper-Engine",
-  "version": 1
+  "version": 2
 }

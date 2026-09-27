@@ -48,8 +48,11 @@ export interface GnomeExtensionStatus {
 const renderApi = {
   extensionStatus: (): Promise<GnomeExtensionStatus> =>
     ipcRenderer.invoke('render:extension-status'),
-  installExtension: (): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke('render:install-extension'),
+  installExtension: (): Promise<{
+    ok: boolean
+    error?: string
+    reloginRequired?: boolean
+  }> => ipcRenderer.invoke('render:install-extension'),
   detect: (): Promise<RenderDetectResult> => ipcRenderer.invoke('render:detect'),
   setActive: (backendId: string | null): Promise<void> =>
     ipcRenderer.invoke('render:set-active', backendId),

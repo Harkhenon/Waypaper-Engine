@@ -17,7 +17,11 @@ export function useRender() {
     }
   }, [])
 
-  const installExtension = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+  const installExtension = useCallback(async (): Promise<{
+    ok: boolean
+    error?: string
+    reloginRequired?: boolean
+  }> => {
     setInstallingExtension(true)
     try {
       const result = await window.api.render.installExtension()
