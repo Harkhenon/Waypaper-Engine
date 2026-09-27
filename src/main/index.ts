@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, dialog, ipcMain, protocol, net } from 'electron'
 import { detectWorkshopFolders, readConfig, scanWorkshopFolder, writeConfig } from './workshop'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { is } from '@electron-toolkit/utils'
 
 function isWaylandSession(): boolean {
@@ -117,6 +118,22 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  win.webContents.on('before-input-event', (_event, input) => {
+    if (input.type !== 'keyDown') return
+    const isF12 = input.key === 'F12'
+    const isCmdOptI =
+      process.platform === 'darwin' && input.meta && input.alt && input.key.toLowerCase() === 'i'
+    const isCtrlShiftI =
+      process.platform !== 'darwin' && input.control && input.shift && input.key.toLowerCase() === 'i'
+    if (isF12 || isCmdOptI || isCtrlShiftI) {
+      if (win.webContents.isDevToolsOpened()) {
+        win.webContents.closeDevTools()
+      } else {
+        win.webContents.openDevTools()
+      }
+    }
+  })
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     void win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -127,14 +144,16 @@ function createWindow(): void {
 const MEDIA_SCHEME = 'waypaper-media'
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: MEDIA_SCHEME, privileges: { standard: true, supportFetchAPI: true } }
+  {
+    scheme: MEDIA_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true, stream: true }
+  }
 ])
 
 function registerMediaProtocol(): void {
   protocol.handle(MEDIA_SCHEME, (request) => {
-    const raw = new URL(request.url).pathname.replace(/^\//, '')
-    const filePath = decodeURIComponent(raw)
-    return net.fetch(`file://${filePath}`)
+    const filePath = decodeURIComponent(new URL(request.url).pathname)
+    return net.fetch(pathToFileURL(filePath).toString())
   })
 }
 

@@ -19,7 +19,7 @@ const VALID_TYPES: WallpaperType[] = ['video', 'web', 'scene', 'application', 'p
 
 export function toMediaUrl(preview: string | null): string {
   if (!preview) return ''
-  return `waypaper-media://local/${encodeURIComponent(preview)}`
+  return `waypaper-media://local${encodeURI(preview)}`
 }
 
 export function toWallpaper(item: ScannedWorkshopItem): Wallpaper {
