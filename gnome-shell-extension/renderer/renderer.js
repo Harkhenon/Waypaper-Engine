@@ -201,19 +201,59 @@ const attachWidget = (index, widget) => {
   if (window) window.set_child(widget)
 }
 
-const monitorGeometry = (index) => {
+const readMonitorsJson = () => {
+  if (!settings) return []
+  const raw = settings.get_string('monitors-json')
+  if (!raw) return []
+  try {
+    return JSON.parse(raw)
+  } catch (e) {
+    console.warn(`monitors-json illisible : ${e}`)
+    return []
+  }
+}
+
+const gdkMonitors = () => {
   const display = Gdk.Display.get_default()
-  const monitors = display ? [...display.get_monitors()] : []
-  return monitors[index]?.get_geometry() ?? { x: 0, y: 0, width: 640, height: 480 }
+  return display ? [...display.get_monitors()] : []
+}
+
+// Traduit un index mutter (celui de monitors-json, utilisé par l'app et le
+// shell) en moniteur GDK : les deux ordonnancements ne coïncident pas
+// toujours. Correspondance par connecteur, puis par position, puis repli
+// sur l'ordre brut.
+const gdkMonitorFor = (index) => {
+  const monitors = gdkMonitors()
+  const meta = readMonitorsJson().find((m) => m.index === index)
+  if (meta?.connector) {
+    const byConnector = monitors.find((g) => g.connector === meta.connector)
+    if (byConnector) return byConnector
+  }
+  if (meta) {
+    const byPosition = monitors.find((g) => {
+      const geo = g.get_geometry()
+      return geo.x === meta.x && geo.y === meta.y
+    })
+    if (byPosition) return byPosition
+  }
+  return monitors[index] ?? null
+}
+
+// Géométrie mutter (monitors-json) : c'est celle du titre de fenêtre — le
+// WindowManager du shell repositionne via move_frame dans le référentiel
+// mutter.
+const mutterGeometry = (index) => {
+  const meta = readMonitorsJson().find((m) => m.index === index)
+  return meta ?? { x: 0, y: 0, width: 640, height: 480, scale: 1 }
 }
 
 const monitorCount = () => {
-  const display = Gdk.Display.get_default()
-  return display ? display.get_monitors().get_n_items() : 0
+  const published = readMonitorsJson()
+  return published.length > 0 ? published.length : gdkMonitors().length
 }
 
 const createWindow = (index) => {
-  const geometry = monitorGeometry(index)
+  const geometry = mutterGeometry(index)
   const window = new Gtk.ApplicationWindow({
     application: applicationInstance,
     decorated: false,
@@ -225,6 +265,11 @@ const createWindow = (index) => {
   window.set_resizable(false)
   windows.set(index, window)
   window.present()
+  const gdkMonitor = gdkMonitorFor(index)
+  if (gdkMonitor) {
+    window.set_monitor(gdkMonitor)
+    window.default_size = [geometry.width, geometry.height]
+  }
   return window
 }
 
