@@ -43,6 +43,16 @@ src/
         └── index.tsx
 ```
 
+## Variables d'environnement (Linux)
+
+| Variable | Effet |
+| --- | --- |
+| `WAYPAPER_NATIVE_WAYLAND=1` | Force le backend Wayland natif pour l'UI (au lieu de XWayland par défaut sous Wayland) |
+
+Sous session Wayland, l'UI bascule par défaut sur XWayland (`ozone-platform=x11`)
+pour contourner un bug amont Electron/Chromium (incompatibilité ozone Wayland /
+Vulkan, notamment sur GPU NVIDIA). Voir `docs/DECISIONS.md` (ADR-009).
+
 ## Thème
 
 Thème principal **gris anthracite** (`#2b2f31`), avec sélection de couleurs secondaires via `src/renderer/src/theme/theme.ts` (`createTheme` Mantine).

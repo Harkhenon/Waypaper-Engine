@@ -8,26 +8,26 @@ function isWaylandSession(): boolean {
   return sessionType === 'wayland'
 }
 
-function hasNvidiaGpu(): boolean {
-  return process.env['NVIDIA_VISIBLE_DEVICES'] !== undefined || process.env['__GLX_VENDOR_LIBRARY_NAME'] === 'nvidia'
-}
+function configureDisplayBackend(): void {
+  const forceNativeWayland = process.env['WAYPAPER_NATIVE_WAYLAND'] === '1'
+  const wayland = isWaylandSession()
 
-function configureGpuForWayland(): void {
-  if (process.env['WAYPAPER_FORCE_XWAYLAND']) {
-    app.commandLine.appendSwitch('ozone-platform', 'x11')
-    return
-  }
-  if (!isWaylandSession()) return
-
-  if (hasNvidiaGpu()) {
-    app.commandLine.appendSwitch('ozone-platform', 'x11')
+  if (!wayland) {
+    console.log('[waypaper] session X11 : backend natif x11')
     return
   }
 
-  app.commandLine.appendSwitch('use-angle', 'gl')
-  app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan')
-  app.commandLine.appendSwitch('disable-vulkan-surface')
-  app.commandLine.appendSwitch('disable-vulkan-native-surface')
+  if (forceNativeWayland) {
+    console.log('[waypaper] session Wayland : backend natif demandé (WAYPAPER_NATIVE_WAYLAND=1)')
+    app.commandLine.appendSwitch('use-angle', 'gl')
+    app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan')
+    app.commandLine.appendSwitch('disable-vulkan-surface')
+    app.commandLine.appendSwitch('disable-vulkan-native-surface')
+    return
+  }
+
+  console.log('[waypaper] session Wayland : bascule UI sur XWayland (ozone x11)')
+  app.commandLine.appendSwitch('ozone-platform', 'x11')
 }
 
 function createWindow(): void {
@@ -62,7 +62,7 @@ function createWindow(): void {
   }
 }
 
-configureGpuForWayland()
+configureDisplayBackend()
 
 void app.whenReady().then(() => {
   createWindow()

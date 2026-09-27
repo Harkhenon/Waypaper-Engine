@@ -87,18 +87,20 @@ canaux IPC réels.
 
 **Motif** : règle projet explicite, applicable dès le scaffolding.
 
-## ADR-009 — UI sous XWayland sur NVIDIA Wayland
+## ADR-009 — UI sous XWayland par défaut (session Wayland)
 
-**Décision** : sous session Wayland avec GPU NVIDIA, l'UI Electron bascule
-automatiquement sur `ozone-platform=x11` (XWayland). Sur les autres GPU, on
-force `use-angle=gl` et on désactive les chemins Vulkan
-(`Vulkan,VulkanFromANGLE,DefaultANGLEVulkan`). La variable
-`WAYPAPER_FORCE_XWAYLAND=1` force XWayland sur tout environnement.
+**Décision** : sous toute session Wayland, l'UI Electron bascule par défaut
+sur `ozone-platform=x11` (XWayland). La variable `WAYPAPER_NATIVE_WAYLAND=1`
+force le backend Wayland natif avec `use-angle=gl` et les désactivations
+Vulkan (`Vulkan,VulkanFromANGLE,DefaultANGLEVulkan`, `disable-vulkan-surface`,
+`disable-vulkan-native-surface`).
 
 **Motif** : bug amont Electron/Chromium non résolu — le backend ozone
 Wayland tente d'initialiser Vulkan même avec les flags de désactivation
-(référence : issues Electron #36633, Brave #55805), et NVIDIA est le cas le
-plus récalcitrant. Sans impact produit : le rendu des wallpapers est délégué
-aux backends d'affichage (ADR-004/006), l'UI n'est pas le chemin de rendu.
-À réexaminer quand Electron corrigera l'amont.
+(référence : issues Electron #36633, Brave #55805), le cas NVIDIA Wayland
+étant le plus récalcitrant. La détection GPU par variables d'environnement
+est peu fiable sur les sessions standard (variables non définies). Sans
+impact produit : le rendu des wallpapers est délégué aux backends
+d'affichage (ADR-004/006), l'UI n'est pas le chemin de rendu. À réexaminer
+quand Electron corrigera l'amont.
 
