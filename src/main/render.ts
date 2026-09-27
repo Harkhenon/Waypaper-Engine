@@ -63,7 +63,10 @@ export async function detectBackends(): Promise<DetectResult> {
 
   for (const backend of RENDER_BACKENDS) {
     if (backend.id === 'gnome-static') {
-      const available = desktop === 'gnome' && (await toolAvailable('gsettings'))
+      const available =
+        desktop === 'gnome' &&
+        (await toolAvailable('gsettings')) &&
+        (await toolAvailable('dconf'))
       backends.push({ id: backend.id, available })
       continue
     }
@@ -138,9 +141,9 @@ export async function findVideoFile(folder: string): Promise<string | null> {
   return null
 }
 
-function runGsettings(args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn('gsettings', args)
+function run(cmd: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args)
     let stdout = ''
     let stderr = ''
     child.stdout?.on('data', (chunk: Buffer) => {
@@ -149,54 +152,78 @@ function runGsettings(args: string[]): Promise<{ code: number; stdout: string; s
     child.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString()
     })
-    child.on('error', reject)
+    child.on('error', () => resolve({ code: -1, stdout, stderr: `impossible de lancer ${cmd}` }))
     child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }))
   })
+}
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+const GNOME_BG_PATH = '/org/gnome/desktop/background'
+
+async function dconfRead(key: string): Promise<string> {
+  const result = await run('dconf', ['read', `${GNOME_BG_PATH}/${key}`])
+  return result.stdout.trim()
+}
+
+async function backgroundMatches(uri: string): Promise<boolean> {
+  const light = await dconfRead('picture-uri')
+  const dark = await dconfRead('picture-uri-dark')
+  console.log(`[render:gnome] picture-uri = ${light || '(non défini)'}`)
+  console.log(`[render:gnome] picture-uri-dark = ${dark || '(non défini)'}`)
+  const target = `'${uri}'`
+  return light === target || dark === target
+}
+
+async function tryPortal(uri: string): Promise<boolean> {
+  if (!(await toolAvailable('gdbus'))) return false
+  console.log('[render:gnome] tentative via le portail xdg-desktop-portal')
+  const result = await run('gdbus', [
+    'call',
+    '--session',
+    '--dest', 'org.freedesktop.portal.Desktop',
+    '--object-path', '/org/freedesktop/portal/desktop',
+    '--method', 'org.freedesktop.portal.Wallpaper.SetWallpaperURI',
+    '',
+    'waypaper-engine',
+    '',
+    uri,
+    "{'show-preview': <false>}"
+  ])
+  if (result.code !== 0) {
+    console.log(`[render:gnome] portail indisponible : ${result.stderr.trim()}`)
+    return false
+  }
+  await sleep(1200)
+  return backgroundMatches(uri)
 }
 
 async function setGnomeBackground(imagePath: string): Promise<SetWallpaperResult> {
   const uri = pathToFileURL(imagePath).href
   console.log(`[render:gnome] application de ${uri}`)
 
-  const main = await runGsettings([
-    'set',
-    'org.gnome.desktop.background',
-    'picture-uri',
-    uri
-  ])
-  if (main.code !== 0) {
-    console.error(`[render:gnome] gsettings picture-uri échec : ${main.stderr.trim()}`)
-    return {
-      ok: false,
-      error: `gsettings picture-uri a échoué (code ${main.code}).`
-    }
+  const scheme = await run('gsettings', ['get', 'org.gnome.desktop.interface', 'color-scheme'])
+  console.log(`[render:gnome] color-scheme : ${scheme.stdout.trim()}`)
+
+  if (await tryPortal(uri)) {
+    console.log('[render:gnome] appliqué via le portail')
+    return { ok: true }
   }
 
-  const dark = await runGsettings([
-    'set',
-    'org.gnome.desktop.background',
-    'picture-uri-dark',
-    uri
-  ])
-  if (dark.code !== 0) {
-    console.log('[render:gnome] picture-uri-dark ignorée (clé absente sur ce GNOME)')
+  console.log('[render:gnome] repli : écriture dconf directe')
+  await run('dconf', ['write', `${GNOME_BG_PATH}/picture-uri`, `'${uri}'`])
+  await run('dconf', ['write', `${GNOME_BG_PATH}/picture-uri-dark`, `'${uri}'`])
+  await sleep(300)
+
+  if (await backgroundMatches(uri)) {
+    console.log('[render:gnome] écriture dconf confirmée')
+    return { ok: true }
   }
 
-  const readBack = await runGsettings([
-    'get',
-    'org.gnome.desktop.background',
-    'picture-uri'
-  ])
-  console.log(`[render:gnome] valeur relue : ${readBack.stdout.trim()}`)
-  if (!readBack.stdout.includes(imagePath)) {
-    console.error('[render:gnome] la valeur relue ne correspond pas au chemin appliqu\u00e9')
-    return {
-      ok: false,
-      error: 'Le fond a \u00e9t\u00e9 \u00e9crit mais la relecture ne correspond pas (profil dconf diff\u00e9rent ?).'
-    }
+  return {
+    ok: false,
+    error: "Le fond a été écrit mais n'a pas pu être vérifié — consultez les logs [render:gnome]."
   }
-
-  return { ok: true }
 }
 
 export async function setWallpaper(payload: SetWallpaperPayload): Promise<SetWallpaperResult> {
