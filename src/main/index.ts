@@ -8,6 +8,7 @@ import {
   stopWallpaper
 } from './render'
 import {
+  getExtensionMonitors,
   getExtensionPlaybackState,
   getExtensionStatus,
   installExtension,
@@ -120,9 +121,10 @@ function createWindow(): void {
   ipcMain.handle('render:extension-status', () => getExtensionStatus())
   ipcMain.handle('render:install-extension', () => installExtension())
   ipcMain.handle('render:playback-state', () => getExtensionPlaybackState())
-  ipcMain.handle('render:playback-set', (_event, key: 'paused' | 'mute', value: boolean) =>
+  ipcMain.handle('render:playback-set', (_event, key: 'paused' | 'mute' | 'loop', value: boolean) =>
     setExtensionPlaybackValue(key, value)
   )
+  ipcMain.handle('render:monitors', () => getExtensionMonitors())
 
   ipcMain.on('window:minimize', () => win.minimize())
   ipcMain.on('window:maximize', () => {

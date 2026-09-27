@@ -172,3 +172,25 @@ pattern fonctionne sur GNOME 45–50, y compris NVIDIA/Wayland, et c'est la
 seule approche qui couvre le lock screen et l'aperçu des espaces de travail.
 Le pilotage par gsettings évite toute API externe (ADR-008) et rend
 l'extension autonome si l'app Electron n'est pas lancée.
+
+## ADR-013 — Pilotage multi-écrans par le schéma gsettings
+
+**Décision** : le schéma `com.harkhenon.waypaper` s'étend :
+
+- `video-paths` (string JSON, défaut `''`) : map « index de moniteur →
+  chemin de vidéo ». Prioritaire sur `video-path` pour l'écran concerné ;
+- `monitors-json` (string JSON, défaut `''`) : liste des écrans (index,
+  géométrie, échelle) publiée par l'extension pour l'UI de l'application ;
+- `loop` (booléen, défaut `true`) : lecture en boucle, option de lecture
+  au même titre que `paused`/`mute`.
+
+Le renderer GJS crée un player par écran assigné (au lieu d'un paintable
+partagé pour tous) et réagit à chaud aux changements de `video-paths`.
+L'extension lance le renderer dès que `video-path` **ou** `video-paths`
+est non vide.
+
+**Motif** : l'assignation par écran est le besoin n°1 après le support
+vidéo de base (multi-écrans hétérogènes). Le transport par gsettings reste
+conforme à ADR-008 (aucune API externe) et à l'architecture ADR-012
+(pilotage par commandes, extension autonome). L'index de moniteur du shell
+est la clé stable entre l'UI et le renderer.

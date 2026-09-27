@@ -48,7 +48,18 @@ export interface GnomeExtensionStatus {
 export interface GnomeExtensionPlaybackState {
   paused: boolean
   muted: boolean
+  loop: boolean
   videoPath: string
+}
+
+export interface ExtensionMonitorInfo {
+  index: number
+  name: string
+  x: number
+  y: number
+  width: number
+  height: number
+  scale: number
 }
 
 const renderApi = {
@@ -69,8 +80,9 @@ const renderApi = {
     ipcRenderer.invoke('render:install', backendId),
   playbackState: (): Promise<GnomeExtensionPlaybackState> =>
     ipcRenderer.invoke('render:playback-state'),
-  setPlayback: (key: 'paused' | 'mute', value: boolean): Promise<void> =>
-    ipcRenderer.invoke('render:playback-set', key, value)
+  setPlayback: (key: 'paused' | 'mute' | 'loop', value: boolean): Promise<void> =>
+    ipcRenderer.invoke('render:playback-set', key, value),
+  monitors: (): Promise<ExtensionMonitorInfo[]> => ipcRenderer.invoke('render:monitors')
 }
 
 export interface DetectedWorkshopFolder {

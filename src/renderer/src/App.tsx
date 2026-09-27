@@ -9,6 +9,7 @@ import MonitorsView from './components/monitors/MonitorsView'
 import SettingsView from './components/settings/SettingsView'
 import { useWorkshop } from './hooks/useWorkshop'
 import { useRender } from './hooks/useRender'
+import { useMonitors } from './hooks/useMonitors'
 import type { Wallpaper } from './data/wallpaper'
 import type { NavigationValue } from './data/navigation'
 
@@ -16,12 +17,14 @@ export default function App() {
   const [section, setSection] = useState<NavigationValue>('library')
   const workshop = useWorkshop()
   const render = useRender()
+  const monitors = useMonitors()
 
-  const handleSetWallpaper = (wallpaper: Wallpaper): void => {
+  const handleSetWallpaper = (wallpaper: Wallpaper, monitorIndex?: number | null): void => {
     void (async () => {
       const result = await render.set({
         wallpaperId: wallpaper.id,
-        folder: wallpaper.folder
+        folder: wallpaper.folder,
+        monitorIndex: monitorIndex ?? null
       })
       await render.refreshPlayback()
       if (result.ok) {
@@ -58,9 +61,16 @@ export default function App() {
                 items={workshop.items}
                 scanning={workshop.scanning}
                 onSet={handleSetWallpaper}
+                monitors={monitors.monitors}
               />
             )}
-            {section === 'monitors' && <MonitorsView />}
+            {section === 'monitors' && (
+              <MonitorsView
+                monitors={monitors.monitors}
+                loading={monitors.loading}
+                onRefresh={() => void monitors.refresh()}
+              />
+            )}
             {section === 'settings' && (
               <SettingsView
                 workshopFolder={workshop.folder}
@@ -104,6 +114,9 @@ export default function App() {
                 }}
                 onSetMuted={(muted) => {
                   void render.setMuted(muted)
+                }}
+                onSetLoop={(loop) => {
+                  void render.setLoop(loop)
                 }}
                 onInstallGnomeExtension={() => {
                   void (async () => {

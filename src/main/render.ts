@@ -117,7 +117,9 @@ export async function stopWallpaper(): Promise<void> {
   }
   if (process.platform === 'linux') {
     try {
-      await setExtensionVideoPath(null)
+      // Arrêt total : video-path (écrans globaux) et toutes les assignations.
+      await setExtensionVideoPath(null, null)
+      await setExtensionVideoPath(null, 'all')
     } catch {
       // gsettings absent ou schéma non installé : rien à arrêter
     }
@@ -281,15 +283,13 @@ export async function setWallpaper(payload: SetWallpaperPayload): Promise<SetWal
     }
   }
 
-  await stopWallpaper()
-
   if (active.id === 'gnome-video') {
     const videoFile = await findVideoFile(payload.folder)
     if (!videoFile) {
       return { ok: false, error: 'Aucun fichier vidéo trouvé dans le dossier du wallpaper.' }
     }
     try {
-      await setExtensionVideoPath(videoFile)
+      await setExtensionVideoPath(videoFile, payload.monitorIndex ?? null)
     } catch (err) {
       return {
         ok: false,

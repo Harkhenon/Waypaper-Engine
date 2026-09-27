@@ -47,22 +47,28 @@ export default class WaypaperExtension extends Extension {
     this._settingsChangedId = this._settings.connect('changed::video-path', () =>
       this._syncRenderer()
     )
+    this._assignmentsChangedId = this._settings.connect('changed::video-paths', () =>
+      this._syncRenderer()
+    )
     this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
       if (this._monitorsTimeoutId) GLib.source_remove(this._monitorsTimeoutId)
       this._monitorsTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
         this._monitorsTimeoutId = 0
         this._stopRenderer()
+        this._publishMonitors()
         this._syncRenderer()
         return GLib.SOURCE_REMOVE
       })
     })
 
     this._windowManager.enable()
+    this._publishMonitors()
     if (this._startingUp) {
       this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => {
         Main.layoutManager.disconnect(this._startupCompleteId)
         this._startupCompleteId = 0
         this._reloadBackgrounds()
+        this._publishMonitors()
         this._syncRenderer()
       })
     } else {
@@ -117,6 +123,22 @@ export default class WaypaperExtension extends Extension {
     })
   }
 
+  // Publie la liste des écrans dans le schéma pour que l'application puisse
+  // afficher des moniteurs réels (la clé est relue par gsettings côté app).
+  _publishMonitors() {
+    if (!this._settings) return
+    const monitors = Main.layoutManager.monitors.map((m, index) => ({
+      index,
+      name: `${m.width}x${m.height}+${m.x}+${m.y}`,
+      x: m.x,
+      y: m.y,
+      width: m.width,
+      height: m.height,
+      scale: Main.layoutManager.monitorScalingScale ?? m.geometry?.scale ?? 1
+    }))
+    this._settings.set_string('monitors-json', JSON.stringify(monitors))
+  }
+
   _getLaters() {
     if (global.compositor?.get_laters) return global.compositor.get_laters()
     if (Meta.Laters?.get) return Meta.Laters.get()
@@ -139,12 +161,13 @@ export default class WaypaperExtension extends Extension {
 
   _syncRenderer() {
     const videoPath = this._settings.get_string('video-path')
-    if (videoPath === '') {
+    const assignments = this._settings.get_string('video-paths')
+    if (videoPath === '' && (!assignments || assignments === '{}')) {
       this._stopRenderer()
       return
     }
     if (this._subprocess) return
-    this._launchRenderer(videoPath)
+    this._launchRenderer(videoPath || assignments)
   }
 
   _launchRenderer(videoPath) {
@@ -217,6 +240,10 @@ export default class WaypaperExtension extends Extension {
     if (this._settingsChangedId) {
       this._settings.disconnect(this._settingsChangedId)
       this._settingsChangedId = 0
+    }
+    if (this._assignmentsChangedId) {
+      this._settings.disconnect(this._assignmentsChangedId)
+      this._assignmentsChangedId = 0
     }
     if (this._monitorsChangedId) {
       Main.layoutManager.disconnect(this._monitorsChangedId)

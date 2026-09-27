@@ -1,5 +1,8 @@
-import { Badge, Card, Group, Paper, Stack, Text, Title } from '@mantine/core'
-import { MOCK_MONITORS, MOCK_PLAYBACK_STATES } from '../../data/mock/monitors'
+import { useMemo } from 'react'
+import { Alert, Badge, Button, Card, Group, Paper, Stack, Text, Title } from '@mantine/core'
+import { IconRefresh } from '@tabler/icons-react'
+import type { ExtensionMonitorInfo } from '../../../../preload/index'
+import { MOCK_MONITORS } from '../../data/mock/monitors'
 
 const STATUS_META = {
   idle: { label: 'Inactif', color: 'anthracite.4' },
@@ -10,31 +13,69 @@ const STATUS_META = {
   error: { label: 'Erreur', color: 'red' }
 } as const
 
-export function MonitorsView() {
-  return (
-    <Stack gap="md">
-      <Title order={3}>Écrans</Title>
-      <Stack gap="md">
-        {MOCK_MONITORS.map((monitor) => {
-          const playback = MOCK_PLAYBACK_STATES.find(
-            (p) => p.monitorId === monitor.id
-          )
-          const status = playback
-            ? STATUS_META[playback.status]
-            : STATUS_META.idle
+interface MonitorsViewProps {
+  monitors: ExtensionMonitorInfo[]
+  loading: boolean
+  onRefresh: () => void
+}
 
+export function MonitorsView({ monitors, loading, onRefresh }: MonitorsViewProps) {
+  const display = useMemo(() => {
+    if (monitors.length > 0) {
+      return monitors.map((m) => ({
+        id: `monitor-${m.index}`,
+        name: m.name,
+        width: m.width,
+        height: m.height,
+        scale: m.scale
+      }))
+    }
+    return MOCK_MONITORS.map((m) => ({
+      id: m.id,
+      name: m.name,
+      width: m.width,
+      height: m.height,
+      scale: m.scale
+    }))
+  }, [monitors])
+
+  const isRealData = monitors.length > 0
+
+  return (
+    <Stack gap="md" maw={560}>
+      <Group justify="space-between">
+        <Title order={3}>Écrans</Title>
+        <Button
+          size="xs"
+          variant="light"
+          leftSection={<IconRefresh size={14} stroke={1.5} />}
+          loading={loading}
+          onClick={onRefresh}
+        >
+          Actualiser
+        </Button>
+      </Group>
+      {!isRealData && (
+        <Alert color="blue" title="Écrans de démonstration">
+          L'extension GNOME Shell n'a publié aucune liste d'écrans — installez-la ou activez-la dans
+          les Paramètres pour afficher vos moniteurs réels.
+        </Alert>
+      )}
+      <Stack gap="md">
+        {display.map((monitor) => {
+          const status = STATUS_META.running
           return (
             <Card key={monitor.id} withBorder padding="md">
               <Group justify="space-between" wrap="nowrap">
                 <Stack gap={4}>
                   <Group gap="sm">
                     <Text fw={600}>{monitor.name}</Text>
-                    <Badge variant="light" color={status.color}>
-                      {status.label}
+                    <Badge variant="light" color={isRealData ? status.color : 'anthracite.4'}>
+                      {isRealData ? status.label : 'Démo'}
                     </Badge>
                   </Group>
                   <Text size="xs" c="anthracite.3">
-                    {monitor.width}×{monitor.height} · {monitor.refreshRate} Hz
+                    {monitor.width}×{monitor.height}
                     {monitor.scale !== 1 && ` · échelle ${monitor.scale}`}
                   </Text>
                 </Stack>
@@ -44,13 +85,8 @@ export function MonitorsView() {
                       Wallpaper
                     </Text>
                     <Text size="sm" fw={500}>
-                      {playback?.wallpaperId ?? '—'}
+                      —
                     </Text>
-                    {playback && playback.status === 'running' && (
-                      <Text size="xs" c="teal.5">
-                        {playback.fps} FPS
-                      </Text>
-                    )}
                   </Stack>
                 </Paper>
               </Group>

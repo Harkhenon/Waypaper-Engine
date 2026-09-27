@@ -27,6 +27,7 @@ interface SettingsViewProps {
   playback: GnomeExtensionPlaybackState | null
   onSetPaused: (paused: boolean) => void
   onSetMuted: (muted: boolean) => void
+  onSetLoop: (loop: boolean) => void
 }
 
 export function SettingsView({
@@ -49,7 +50,8 @@ export function SettingsView({
   onInstallGnomeExtension,
   playback,
   onSetPaused,
-  onSetMuted
+  onSetMuted,
+  onSetLoop
 }: SettingsViewProps) {
   return (
     <Stack gap="md" maw={560}>
@@ -84,6 +86,7 @@ export function SettingsView({
         )}
         onSetPaused={onSetPaused}
         onSetMuted={onSetMuted}
+        onSetLoop={onSetLoop}
       />
     </Stack>
   )

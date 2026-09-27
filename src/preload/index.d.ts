@@ -43,7 +43,18 @@ export interface GnomeExtensionStatus {
 export interface GnomeExtensionPlaybackState {
   paused: boolean
   muted: boolean
+  loop: boolean
   videoPath: string
+}
+
+export interface ExtensionMonitorInfo {
+  index: number
+  name: string
+  x: number
+  y: number
+  width: number
+  height: number
+  scale: number
 }
 
 export interface RenderApi {
@@ -59,7 +70,8 @@ export interface RenderApi {
   stop: () => Promise<void>
   install: (backendId: string) => Promise<{ ok: boolean; error?: string }>
   playbackState: () => Promise<GnomeExtensionPlaybackState>
-  setPlayback: (key: 'paused' | 'mute', value: boolean) => Promise<void>
+  setPlayback: (key: 'paused' | 'mute' | 'loop', value: boolean) => Promise<void>
+  monitors: () => Promise<ExtensionMonitorInfo[]>
 }
 
 export interface DetectedWorkshopFolder {

@@ -2,9 +2,15 @@ import { useMemo, useState } from 'react'
 import { Center, Grid, Loader, Select, Stack, Text, TextInput, Title } from '@mantine/core'
 import { IconSearch } from '@tabler/icons-react'
 import type { Wallpaper } from '../../data/wallpaper'
+import type { ExtensionMonitorInfo } from '../../../../preload/index'
 import { WALLPAPER_TYPE_META } from '../../data/wallpaper'
 import { toWallpaper, type ScannedWorkshopItem } from '../../hooks/useWorkshop'
-import { SORT_OPTIONS, TYPE_FILTER_OPTIONS, type SortValue, type TypeFilterValue } from '../../data/filters'
+import {
+  SORT_OPTIONS,
+  TYPE_FILTER_OPTIONS,
+  type SortValue,
+  type TypeFilterValue
+} from '../../data/filters'
 import WallpaperCard from './WallpaperCard'
 
 function applyFilters(
@@ -42,10 +48,11 @@ function applyFilters(
 interface LibraryViewProps {
   items: ScannedWorkshopItem[]
   scanning: boolean
-  onSet: (wallpaper: Wallpaper) => void
+  onSet: (wallpaper: Wallpaper, monitorIndex?: number | null) => void
+  monitors: ExtensionMonitorInfo[]
 }
 
-export function LibraryView({ items, scanning, onSet }: LibraryViewProps) {
+export function LibraryView({ items, scanning, onSet, monitors }: LibraryViewProps) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<TypeFilterValue>('all')
   const [sort, setSort] = useState<SortValue>('recent')
@@ -115,9 +122,7 @@ export function LibraryView({ items, scanning, onSet }: LibraryViewProps) {
         <Center h={300}>
           <Stack align="center" gap="xs">
             <Title order={4} c="anthracite.2">
-              {items.length === 0
-                ? 'Aucun wallpaper importé'
-                : 'Aucun résultat'}
+              {items.length === 0 ? 'Aucun wallpaper importé' : 'Aucun résultat'}
             </Title>
             <Text size="sm" c="anthracite.3">
               {items.length === 0
@@ -132,7 +137,7 @@ export function LibraryView({ items, scanning, onSet }: LibraryViewProps) {
         <Grid gap="md">
           {filtered.map((wallpaper) => (
             <Grid.Col key={wallpaper.id} span={{ base: 12, sm: 6, md: 4, lg: 3 }}>
-              <WallpaperCard wallpaper={wallpaper} onSet={onSet} />
+              <WallpaperCard wallpaper={wallpaper} onSet={onSet} monitors={monitors} />
             </Grid.Col>
           ))}
         </Grid>

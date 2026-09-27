@@ -4,17 +4,32 @@
     <key name="video-path" type="s">
       <default>''</default>
       <summary>Chemin de la vidéo</summary>
-      <description>Vidéo jouée en fond d'écran. Vide = rendu arrêté.</description>
+      <description>Vidéo jouée sur tous les écrans sans assignation spécifique. Vide et sans assignations = rendu arrêté.</description>
+    </key>
+    <key name="video-paths" type="s">
+      <default>''</default>
+      <summary>Assignations par écran</summary>
+      <description>JSON « index de moniteur » vers chemin de vidéo. Prioritaire sur video-path pour l'écran concerné.</description>
+    </key>
+    <key name="monitors-json" type="s">
+      <default>''</default>
+      <summary>Écrans détectés</summary>
+      <description>JSON descriptif des moniteurs, écrit par l'extension GNOME Shell à destination de l'application.</description>
     </key>
     <key name="paused" type="b">
       <default>false</default>
       <summary>Lecture en pause</summary>
-      <description>Suspend la lecture de la vidéo.</description>
+      <description>Suspend la lecture des vidéos.</description>
     </key>
     <key name="mute" type="b">
       <default>true</default>
       <summary>Couper le son</summary>
-      <description>Coupe le son de la vidéo par défaut.</description>
+      <description>Coupe le son des vidéos par défaut.</description>
+    </key>
+    <key name="loop" type="b">
+      <default>true</default>
+      <summary>Lecture en boucle</summary>
+      <description>Rejoue la vidéo depuis le début à la fin du flux.</description>
     </key>
   </schema>
 </schemalist>

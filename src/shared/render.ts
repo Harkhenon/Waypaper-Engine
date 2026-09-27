@@ -57,6 +57,8 @@ export interface SetWallpaperPayload {
   wallpaperId: string
   folder: string
   file: string
+  /** Index du moniteur cible ; null = tous les écrans sans assignation. */
+  monitorIndex?: number | null
 }
 
 export interface SetWallpaperResult {

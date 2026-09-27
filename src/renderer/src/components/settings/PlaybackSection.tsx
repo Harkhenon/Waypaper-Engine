@@ -1,5 +1,11 @@
 import { Badge, Group, Stack, Switch, Text } from '@mantine/core'
-import { IconPlayerPause, IconPlayerPlay, IconVolume, IconVolumeOff } from '@tabler/icons-react'
+import {
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconRepeat,
+  IconVolume,
+  IconVolumeOff
+} from '@tabler/icons-react'
 import type { GnomeExtensionPlaybackState } from '../../../../preload/index'
 
 interface PlaybackSectionProps {
@@ -7,13 +13,15 @@ interface PlaybackSectionProps {
   gnomeExtensionActive: boolean
   onSetPaused: (paused: boolean) => void
   onSetMuted: (muted: boolean) => void
+  onSetLoop: (loop: boolean) => void
 }
 
 export function PlaybackSection({
   playback,
   gnomeExtensionActive,
   onSetPaused,
-  onSetMuted
+  onSetMuted,
+  onSetLoop
 }: PlaybackSectionProps) {
   const running = Boolean(playback?.videoPath)
 
@@ -76,6 +84,16 @@ export function PlaybackSection({
                 <IconVolume size={14} stroke={1.5} />
               )}
               <Text size="sm">{playback?.muted ? 'Son coup\u00e9' : 'Son actif'}</Text>
+            </Group>
+          }
+        />
+        <Switch
+          checked={playback?.loop ?? true}
+          onChange={(e) => onSetLoop(e.currentTarget.checked)}
+          label={
+            <Group gap={6} wrap="nowrap">
+              <IconRepeat size={14} stroke={1.5} />
+              <Text size="sm">Lecture en boucle</Text>
             </Group>
           }
         />

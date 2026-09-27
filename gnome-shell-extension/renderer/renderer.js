@@ -1,6 +1,6 @@
 #!/usr/bin/env gjs
 // Renderer Waypaper Engine : joue la vidéo dans des fenêtres GTK4 (une par
-// écran, paintable partagé) que l'extension GNOME Shell clone dans le fond.
+// écran) que l'extension GNOME Shell clone dans le fond.
 // Adapté de Hanabi (jeffshee/gnome-ext-hanabi) — GPL-3.0-or-later.
 imports.gi.versions.Gtk = '4.0'
 const { GObject, Gtk, Gio, GLib, Gdk, Gst } = imports.gi
@@ -20,14 +20,8 @@ const settings = Gio.SettingsSchemaSource.get_default().lookup(SCHEMA_ID, false)
   ? Gio.Settings.new(SCHEMA_ID)
   : null
 
-let videoPath = null
-let mute = settings ? settings.get_boolean('mute') : true
-let paused = settings ? settings.get_boolean('paused') : false
-
-let sharedPaintable = null
-const pictures = []
-let play = null
-let media = null
+// Un player par écran : index de moniteur -> { uri, player, widget }.
+const players = new Map()
 
 const parseArgs = (argv) => {
   let last = null
@@ -36,7 +30,7 @@ const parseArgs = (argv) => {
       // -P : chemin du code (inutilisé ici, réservé)
       last = null
     } else if (last === '-F') {
-      videoPath = arg
+      initialVideoPath = arg
       last = null
     } else if (arg === '-P' || arg === '-F') {
       last = arg
@@ -44,30 +38,30 @@ const parseArgs = (argv) => {
   }
 }
 
-const setPlay = () => {
-  if (play) play.play()
-  else if (media) media.play()
-}
+let initialVideoPath = null
 
-const setPause = () => {
-  if (play) play.pause()
-  else if (media) media.pause()
-}
-
-const setFilePath = (path) => {
-  const file = Gio.File.new_for_path(path)
-  if (play) {
-    play.set_uri(file.get_uri())
-  } else if (media) {
-    media.file = file
+// Lis « video-paths » (JSON index -> chemin) puis « video-path » (tous les
+// écrans sans assignation).
+const readAssignments = () => {
+  const byMonitor = {}
+  if (settings) {
+    const raw = settings.get_string('video-paths')
+    if (raw) {
+      try {
+        Object.assign(byMonitor, JSON.parse(raw))
+      } catch (e) {
+        console.warn(`video-paths illisible : ${e}`)
+      }
+    }
   }
-  setPlay()
+  const globalPath = settings ? settings.get_string('video-path') : initialVideoPath
+  return { byMonitor, globalPath }
 }
 
-// Titre = contrat avec le WindowManager du shell : position cible et états
-// keep* (pattern Hanabi). La fenêtre n'est PAS fullscreen : le shell la
-// minimise et la positionne lui-même, ce qui évite qu'elle intercepte les
-// clics pendant le map.
+const setPlay = (player) => player.play()
+const setPause = (player) => player.pause()
+
+// Titre = contrat avec le WindowManager du shell (pattern Hanabi).
 const buildWindowTitle = (index, geometry) => {
   const state = {
     position: [geometry.x, geometry.y],
@@ -78,62 +72,109 @@ const buildWindowTitle = (index, geometry) => {
   return `@${APPLICATION_ID}!${JSON.stringify(state)}|${index}`
 }
 
-const syncPlayback = () => {
-  const wantPaused = settings ? settings.get_boolean('paused') : false
-  if (wantPaused) setPause()
-  else setPlay()
-}
-
-const syncMute = () => {
-  const wantMuted = settings ? settings.get_boolean('mute') : true
-  if (play) {
-    if (play.mute === wantMuted) play.mute = !wantMuted
-    play.mute = wantMuted
-  } else if (media) {
-    media.muted = wantMuted
+// Crée (ou remplace) le player d'un écran. Retire l'écran de la map si le
+// chemin est vide (assignation retirée).
+const setMonitorVideo = (index, path) => {
+  const existing = players.get(index)
+  if (existing) {
+    if (!path) {
+      players.delete(index)
+      existing.media?.stream_unprepared()
+      existing.play?.stop()
+      existing.media?.pause()
+      return
+    }
+    if (existing.path === path) return
+    existing.path = path
+    const file = Gio.File.new_for_path(path)
+    if (existing.play) existing.play.set_uri(file.get_uri())
+    else existing.media.file = file
+  } else {
+    if (!path) return
+    const entry = buildPlayer(path)
+    players.set(index, entry)
+    const picture = buildPicture(entry.paintable)
+    attachWidget(index, picture)
   }
+  syncPlaybackState()
 }
 
-const buildWidgetFromSink = (sink) => {
-  sharedPaintable = sink.paintable
-  return buildWidgetFromPaintable()
-}
-
-const buildWidgetFromPaintable = () => {
-  const picture = new Gtk.Picture({
-    paintable: sharedPaintable,
-    hexpand: true,
-    vexpand: true
-  })
-  picture.set_content_fit(Gtk.ContentFit.CONTAIN)
-  pictures.push(picture)
-  return picture
-}
-
-const setupPlayback = () => {
+// Construit un player (GstPlay si dispo, sinon Gtk.MediaFile) et son
+// paintable partagé pour l'écran donné.
+const buildPlayer = (path) => {
+  const file = Gio.File.new_for_path(path)
   if (haveGstPlay) {
     let sink = Gst.ElementFactory.make('gtk4paintablesink', 'gtk4paintablesink')
     if (!sink) sink = Gst.ElementFactory.make('gtksink', 'gtksink')
     if (sink && !sink.widget && sink.paintable) {
-      play = GstPlay.Play.new(GstPlay.PlayVideoOverlayVideoRenderer.new_with_sink(null, sink))
+      const play = GstPlay.Play.new(GstPlay.PlayVideoOverlayVideoRenderer.new_with_sink(null, sink))
       const adapter = GstPlay.PlaySignalAdapter.new(play)
-      adapter.connect('end-of-stream', (a) => a.play.seek(0))
+      adapter.connect('end-of-stream', (a) => {
+        if (settings ? settings.get_boolean('loop') : true) a.play.seek(0)
+      })
       adapter.connect('warning', (_a, err) => console.warn(err))
       adapter.connect('error', (_a, err) => console.error(err))
-      const file = Gio.File.new_for_path(videoPath)
       play.set_uri(file.get_uri())
-      play.mute = mute
+      play.mute = settings ? settings.get_boolean('mute') : true
       play.play()
-      sharedPaintable = sink.paintable
-      return buildWidgetFromPaintable()
+      return { path, play, adapter, paintable: sink.paintable }
     }
   }
-  // Repli : Gtk.MediaFile (présent dans GTK4, aucune dépendance GStreamer)
-  media = Gtk.MediaFile.new_for_filename(videoPath)
-  media.set({ loop: true, muted: mute })
+  const media = Gtk.MediaFile.new_for_filename(path)
+  media.set({ loop: settings ? settings.get_boolean('loop') : true })
+  media.muted = settings ? settings.get_boolean('mute') : true
   media.play()
-  sharedPaintable = media
-  return buildWidgetFromPaintable()
+  return { path, media, paintable: media }
+}
+
+const buildPicture = (paintable) => {
+  const picture = new Gtk.Picture({
+    paintable,
+    hexpand: true,
+    vexpand: true
+  })
+  picture.set_content_fit(Gtk.ContentFit.CONTAIN)
+  return picture
+}
+
+// Chaque écran a sa fenêtre ; attachWidget garde le mapping pour remplacer
+// le contenu quand l'assignation change à chaud.
+const windows = new Map()
+
+const attachWidget = (index, widget) => {
+  const window = windows.get(index)
+  if (window) window.set_child(widget)
+}
+
+const syncPlaybackState = () => {
+  const wantPaused = settings ? settings.get_boolean('paused') : false
+  for (const entry of players.values()) {
+    if (entry.play) wantPaused ? entry.play.pause() : entry.play.play()
+    else if (entry.media) wantPaused ? entry.media.pause() : entry.media.play()
+  }
+}
+
+const syncMuteState = () => {
+  const wantMuted = settings ? settings.get_boolean('mute') : true
+  for (const entry of players.values()) {
+    if (entry.play) {
+      if (entry.play.mute === wantMuted) entry.play.mute = !wantMuted
+      entry.play.mute = wantMuted
+    } else if (entry.media) {
+      entry.media.muted = wantMuted
+    }
+  }
+}
+
+const syncAll = () => {
+  const { byMonitor, globalPath } = readAssignments()
+  for (const [index, path] of Object.entries(byMonitor)) {
+    setMonitorVideo(Number(index), path)
+  }
+  // Écrans sans assignation : vidéo globale (ou retrait si vide).
+  for (const index of windows.keys()) {
+    if (!(index in byMonitor)) setMonitorVideo(index, globalPath)
+  }
 }
 
 const RendererApp = GObject.registerClass(
@@ -142,7 +183,7 @@ const RendererApp = GObject.registerClass(
     vfunc_activate() {
       const display = Gdk.Display.get_default()
       const monitors = display ? [...display.get_monitors()] : []
-      const widget = setupPlayback()
+      const { byMonitor, globalPath } = readAssignments()
       monitors.forEach((gdkMonitor, index) => {
         const geometry = gdkMonitor.get_geometry()
         const window = new Gtk.ApplicationWindow({
@@ -152,22 +193,20 @@ const RendererApp = GObject.registerClass(
           default_height: geometry.height,
           title: buildWindowTitle(index, geometry)
         })
-        window.set_child(index === 0 ? widget : buildWidgetFromPaintable())
         window.set_size_request(geometry.width, geometry.height)
         window.set_resizable(false)
+        windows.set(index, window)
+        const path = byMonitor[String(index)] ?? globalPath ?? initialVideoPath
+        if (path) setMonitorVideo(index, path)
         window.present()
       })
       settings?.connect('changed', (s, key) => {
-        if (key === 'video-path') {
-          const next = s.get_string(key)
-          if (next && next !== videoPath) {
-            videoPath = next
-            setFilePath(next)
-          }
+        if (key === 'video-path' || key === 'video-paths') {
+          syncAll()
         } else if (key === 'paused') {
-          syncPlayback()
+          syncPlaybackState()
         } else if (key === 'mute') {
-          syncMute()
+          syncMuteState()
         }
       })
     }
@@ -176,7 +215,7 @@ const RendererApp = GObject.registerClass(
 
 Gst.init(null)
 parseArgs(ARGV)
-if (!videoPath) {
+if (!initialVideoPath) {
   console.error('renderer : aucun chemin de vidéo fourni (-F)')
   imports.system.exit(1)
 }

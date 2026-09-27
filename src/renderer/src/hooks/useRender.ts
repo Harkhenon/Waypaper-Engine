@@ -42,6 +42,14 @@ export function useRender() {
     [refreshPlayback]
   )
 
+  const setLoop = useCallback(
+    async (loop: boolean): Promise<void> => {
+      await window.api.render.setPlayback('loop', loop)
+      await refreshPlayback()
+    },
+    [refreshPlayback]
+  )
+
   const fetchExtension = useCallback(async (): Promise<GnomeExtensionStatus | null> => {
     try {
       return await window.api.render.extensionStatus()
@@ -115,11 +123,13 @@ export function useRender() {
     async (payload: {
       wallpaperId: string
       folder: string
+      monitorIndex?: number | null
     }): Promise<{ ok: boolean; error?: string }> => {
       return window.api.render.set({
         wallpaperId: payload.wallpaperId,
         folder: payload.folder,
-        file: ''
+        file: '',
+        monitorIndex: payload.monitorIndex ?? null
       })
     },
     []
@@ -166,6 +176,7 @@ export function useRender() {
     playback,
     refreshPlayback,
     setPaused,
-    setMuted
+    setMuted,
+    setLoop
   }
 }

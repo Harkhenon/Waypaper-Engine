@@ -1,6 +1,7 @@
-import { ActionIcon, Card, Group, Stack, Text, Tooltip } from '@mantine/core'
-import { IconDeviceDesktop } from '@tabler/icons-react'
+import { ActionIcon, Card, Group, Menu, Stack, Text, Tooltip } from '@mantine/core'
+import { IconDeviceDesktop, IconDeviceDesktopAnalytics } from '@tabler/icons-react'
 import type { Wallpaper } from '../../data/wallpaper'
+import type { ExtensionMonitorInfo } from '../../../../preload/index'
 import { WALLPAPER_TYPE_META } from '../../data/wallpaper'
 import WallpaperPreview from './WallpaperPreview'
 import WallpaperBadges from './WallpaperBadges'
@@ -24,32 +25,56 @@ function formatDate(iso: string): string {
 
 interface WallpaperCardProps {
   wallpaper: Wallpaper
-  onSet: (wallpaper: Wallpaper) => void
+  onSet: (wallpaper: Wallpaper, monitorIndex?: number | null) => void
+  monitors: ExtensionMonitorInfo[]
 }
 
-export function WallpaperCard({ wallpaper, onSet }: WallpaperCardProps) {
+export function WallpaperCard({ wallpaper, onSet, monitors }: WallpaperCardProps) {
   const supported = WALLPAPER_TYPE_META[wallpaper.type].supported
 
   const handleSet = (): void => onSet(wallpaper)
+  const handleSetOnMonitor = (index: number): void => onSet(wallpaper, index)
 
   return (
     <Card padding={0} withBorder className="wallpaper-card">
       <WallpaperPreview wallpaper={wallpaper} />
       {supported && (
-        <Tooltip label="Définir comme wallpaper" position="bottom" withinPortal>
-          <ActionIcon
-            variant="filled"
-            color="teal"
-            aria-label="Définir comme wallpaper"
-            pos="absolute"
-            top={8}
-            right={8}
-            className="wallpaper-card-action"
-            onClick={handleSet}
-          >
-            <IconDeviceDesktop size={16} stroke={1.5} />
-          </ActionIcon>
-        </Tooltip>
+        <Menu position="bottom-end" withinPortal shadow="md">
+          <Menu.Target>
+            <Tooltip label="Définir comme wallpaper" position="bottom" withinPortal>
+              <ActionIcon
+                variant="filled"
+                color="teal"
+                aria-label="Définir comme wallpaper"
+                pos="absolute"
+                top={8}
+                right={8}
+                className="wallpaper-card-action"
+                onClick={handleSet}
+              >
+                <IconDeviceDesktop size={16} stroke={1.5} />
+              </ActionIcon>
+            </Tooltip>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>Appliquer sur</Menu.Label>
+            <Menu.Item
+              leftSection={<IconDeviceDesktop size={14} stroke={1.5} />}
+              onClick={handleSet}
+            >
+              Tous les écrans
+            </Menu.Item>
+            {monitors.map((monitor) => (
+              <Menu.Item
+                key={monitor.index}
+                leftSection={<IconDeviceDesktopAnalytics size={14} stroke={1.5} />}
+                onClick={() => handleSetOnMonitor(monitor.index)}
+              >
+                {monitor.name} ({monitor.width}×{monitor.height})
+              </Menu.Item>
+            ))}
+          </Menu.Dropdown>
+        </Menu>
       )}
       <Stack gap="xs" p="sm">
         <Tooltip label={wallpaper.title} position="top" withinPortal>

@@ -279,56 +279,134 @@ export async function installExtension(): Promise<InstallResult> {
 export interface ExtensionPlaybackState {
   paused: boolean
   muted: boolean
+  loop: boolean
   videoPath: string
 }
 
-async function readExtensionBoolean(key: 'paused' | 'mute'): Promise<boolean> {
+async function readExtensionBoolean(key: 'paused' | 'mute' | 'loop'): Promise<boolean> {
   const result = await run('gsettings', ['get', EXTENSION_SCHEMA, key])
-  if (result.code !== 0) return false
-  return result.stdout.trim() === 'true'
+  if (result.code !== 0) {
+    if (key === 'loop') return true
+    return false
+  }
+  const value = result.stdout.trim()
+  if (value !== 'true' && value !== 'false') return key === 'loop'
+  return value === 'true'
 }
 
 export async function getExtensionPlaybackState(): Promise<ExtensionPlaybackState> {
-  const [paused, muted, videoResult] = await Promise.all([
+  const [paused, muted, loop, videoResult] = await Promise.all([
     readExtensionBoolean('paused'),
     readExtensionBoolean('mute'),
+    readExtensionBoolean('loop'),
     run('gsettings', ['get', EXTENSION_SCHEMA, 'video-path'])
   ])
   const raw = videoResult.stdout.trim()
   const videoPath = raw.startsWith("'") && raw.endsWith("'") ? raw.slice(1, -1) : raw
-  return { paused, muted, videoPath }
+  return { paused, muted, loop, videoPath }
 }
 
 export async function setExtensionPlaybackValue(
-  key: 'paused' | 'mute',
+  key: 'paused' | 'mute' | 'loop',
   value: boolean
 ): Promise<void> {
-  const result = await run('gsettings', [
-    'set',
-    EXTENSION_SCHEMA,
-    key,
-    value ? 'true' : 'false'
-  ])
+  const result = await run('gsettings', ['set', EXTENSION_SCHEMA, key, value ? 'true' : 'false'])
   if (result.code !== 0) {
     throw new Error(`\u00c9chec gsettings ${key} : ${result.stderr.trim().slice(0, 200)}`)
   }
   console.log(`[gnome-extension] ${key} = ${value}`)
 }
 
-export async function setExtensionVideoPath(videoPath: string | null): Promise<void> {
+export interface ExtensionMonitor {
+  index: number
+  name: string
+  x: number
+  y: number
+  width: number
+  height: number
+  scale: number
+}
+
+export async function getExtensionMonitors(): Promise<ExtensionMonitor[]> {
+  const result = await run('gsettings', ['get', EXTENSION_SCHEMA, 'monitors-json'])
+  if (result.code !== 0) return []
+  const raw = result.stdout.trim()
+  if (!raw || raw === "''") return []
+  const json = raw.startsWith("'") && raw.endsWith("'") ? raw.slice(1, -1) : raw
+  try {
+    const parsed = JSON.parse(json) as ExtensionMonitor[]
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+async function readStringSetting(key: 'video-path' | 'video-paths'): Promise<string> {
+  const result = await run('gsettings', ['get', EXTENSION_SCHEMA, key])
+  if (result.code !== 0) return ''
+  const raw = result.stdout.trim()
+  return raw.startsWith("'") && raw.endsWith("'") ? raw.slice(1, -1) : raw
+}
+
+async function readVideoPaths(): Promise<Record<string, string>> {
+  const raw = await readStringSetting('video-paths')
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as Record<string, string>
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+async function writeVideoPaths(paths: Record<string, string>): Promise<void> {
+  const value = Object.keys(paths).length === 0 ? '' : JSON.stringify(paths)
+  const result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-paths', value])
+  if (result.code !== 0) {
+    throw new Error(`\u00c9chec gsettings video-paths : ${result.stderr.trim().slice(0, 200)}`)
+  }
+}
+
+/**
+ * Assigne une vidéo à un écran précis (index), ou à tous les écrans sans
+ * assignation si monitorIndex est null (clé video-path). Passer null en
+ * monitorIndex avec videoPath null stoppe tout le rendu.
+ */
+export async function setExtensionVideoPath(
+  videoPath: string | null,
+  monitorIndex?: number | 'all' | null
+): Promise<void> {
+  if (monitorIndex === 'all') {
+    if (!videoPath) {
+      await writeVideoPaths({})
+      console.log('[gnome-extension] toutes les assignations video-paths retirées')
+    }
+    return
+  }
+  if (monitorIndex !== undefined && monitorIndex !== null) {
+    const paths = await readVideoPaths()
+    if (videoPath) {
+      paths[String(monitorIndex)] = videoPath
+    } else {
+      delete paths[String(monitorIndex)]
+    }
+    await writeVideoPaths(paths)
+    console.log(`[gnome-extension] video-paths[${monitorIndex}] = ${videoPath || '(retir\u00e9)'}`)
+    return
+  }
   const value = videoPath ?? ''
   let result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-path', value])
   if (result.code !== 0 && !(await schemaVisible())) {
-    // Schéma absent : l'installer puis retenter.
-    console.log('[gnome-extension] schéma absent, installation puis nouvelle tentative')
+    // Sch\u00e9ma absent : l'installer puis retenter.
+    console.log('[gnome-extension] sch\u00e9ma absent, installation puis nouvelle tentative')
     await ensureUserSchema()
     result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-path', value])
   }
   if (result.code !== 0) {
     console.error(
-      `[gnome-extension] gsettings set a échoué : ${result.stderr.trim().slice(0, 300)}`
+      `[gnome-extension] gsettings set a \u00e9chou\u00e9 : ${result.stderr.trim().slice(0, 300)}`
     )
-    throw new Error(`Échec gsettings : ${result.stderr.trim().slice(0, 200)}`)
+    throw new Error(`\u00c9chec gsettings : ${result.stderr.trim().slice(0, 200)}`)
   }
-  console.log(`[gnome-extension] video-path = ${value || '(arrêt)'}`)
+  console.log(`[gnome-extension] video-path = ${value || '(arr\u00eat)'}`)
 }
