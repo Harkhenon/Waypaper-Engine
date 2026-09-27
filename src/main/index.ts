@@ -8,10 +8,17 @@ function isWaylandSession(): boolean {
   return sessionType === 'wayland'
 }
 
-function disableVulkanOnWayland(): void {
-  if (isWaylandSession()) {
-    app.commandLine.appendSwitch('disable-features', 'Vulkan')
+function configureGpuForWayland(): void {
+  if (process.env['WAYPAPER_FORCE_XWAYLAND']) {
+    app.commandLine.appendSwitch('ozone-platform', 'x11')
+    return
   }
+  if (!isWaylandSession()) return
+
+  app.commandLine.appendSwitch('use-angle', 'gl')
+  app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan')
+  app.commandLine.appendSwitch('disable-vulkan-surface')
+  app.commandLine.appendSwitch('disable-vulkan-native-surface')
 }
 
 function createWindow(): void {
@@ -46,7 +53,7 @@ function createWindow(): void {
   }
 }
 
-disableVulkanOnWayland()
+configureGpuForWayland()
 
 void app.whenReady().then(() => {
   createWindow()
