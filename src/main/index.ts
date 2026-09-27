@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, dialog, ipcMain, protocol, net } from 'electron'
 import { detectWorkshopFolders, readConfig, scanWorkshopFolder, writeConfig } from './workshop'
-import { detectBackends, setActiveBackend, setWallpaper, stopWallpaper } from './render'
+import { detectBackends, installBackendTool, setActiveBackend, setWallpaper, stopWallpaper } from './render'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import type { SetWallpaperPayload } from '../shared/render'
@@ -102,6 +102,7 @@ function createWindow(): void {
   ipcMain.handle('render:set-active', (_event, backendId: string | null) => setActiveBackend(backendId))
   ipcMain.handle('render:set', (_event, payload: SetWallpaperPayload) => setWallpaper(payload))
   ipcMain.handle('render:stop', () => stopWallpaper())
+  ipcMain.handle('render:install', (_event, backendId: string) => installBackendTool(backendId))
 
   ipcMain.on('window:minimize', () => win.minimize())
   ipcMain.on('window:maximize', () => {

@@ -35,7 +35,9 @@ export function useRender() {
   const setActive = useCallback(async (backendId: string | null): Promise<void> => {
     await window.api.render.setActive(backendId)
     setState((prev) =>
-      prev ? { ...prev, active: backendId } : { sessionType: 'X11', backends: [], active: backendId }
+      prev
+        ? { ...prev, active: backendId }
+        : { sessionType: 'X11', desktop: 'unknown', backends: [], active: backendId }
     )
   }, [])
 
@@ -50,5 +52,16 @@ export function useRender() {
     await window.api.render.stop()
   }, [])
 
-  return { state, detecting, detect, setActive, set, stop }
+  const install = useCallback(
+    async (backendId: string): Promise<{ ok: boolean; error?: string }> => {
+      const result = await window.api.render.install(backendId)
+      if (result.ok) {
+        setState(await fetchState())
+      }
+      return result
+    },
+    [fetchState]
+  )
+
+  return { state, detecting, detect, setActive, set, stop, install }
 }

@@ -18,6 +18,7 @@ interface SettingsViewProps {
   renderDetecting: boolean
   onDetectRender: () => void
   onSelectRenderBackend: (backendId: string | null) => void
+  onInstallRenderBackend: (backendId: string) => void
 }
 
 export function SettingsView({
@@ -33,7 +34,8 @@ export function SettingsView({
   renderState,
   renderDetecting,
   onDetectRender,
-  onSelectRenderBackend
+  onSelectRenderBackend,
+  onInstallRenderBackend
 }: SettingsViewProps) {
   return (
     <Stack gap="md" maw={560}>
@@ -55,6 +57,7 @@ export function SettingsView({
         detecting={renderDetecting}
         onDetect={onDetectRender}
         onSelect={onSelectRenderBackend}
+        onInstall={onInstallRenderBackend}
       />
     </Stack>
   )

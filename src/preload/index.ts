@@ -8,6 +8,7 @@ export interface RenderBackendStatus {
 
 export interface RenderDetectResult {
   sessionType: 'X11' | 'Wayland'
+  desktop: 'gnome' | 'kde' | 'wlroots' | 'x11' | 'unknown'
   backends: RenderBackendStatus[]
   active: string | null
 }
@@ -43,7 +44,9 @@ const renderApi = {
     ipcRenderer.invoke('render:set-active', backendId),
   set: (payload: SetWallpaperPayload): Promise<SetWallpaperResult> =>
     ipcRenderer.invoke('render:set', payload),
-  stop: (): Promise<void> => ipcRenderer.invoke('render:stop')
+  stop: (): Promise<void> => ipcRenderer.invoke('render:stop'),
+  install: (backendId: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('render:install', backendId)
 }
 
 export interface DetectedWorkshopFolder {

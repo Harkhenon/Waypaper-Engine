@@ -78,6 +78,26 @@ export default function App() {
                 renderDetecting={render.detecting}
                 onDetectRender={() => void render.detect()}
                 onSelectRenderBackend={(id) => void render.setActive(id)}
+                onInstallRenderBackend={(id) => {
+                  void (async () => {
+                    const result = await render.install(id)
+                    if (result.ok) {
+                      notifications.show({
+                        title: 'Installation terminée',
+                        message: 'Le backend a été installé et la détection relancée.',
+                        color: 'teal',
+                        autoClose: 3500
+                      })
+                    } else {
+                      notifications.show({
+                        title: 'Échec de l\u2019installation',
+                        message: result.error ?? 'Erreur inconnue.',
+                        color: 'red',
+                        autoClose: 6000
+                      })
+                    }
+                  })()
+                }}
               />
             )}
           </Box>

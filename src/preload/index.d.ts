@@ -28,6 +28,7 @@ export interface RenderBackendStatus {
 
 export interface RenderDetectResult {
   sessionType: 'X11' | 'Wayland'
+  desktop: 'gnome' | 'kde' | 'wlroots' | 'x11' | 'unknown'
   backends: RenderBackendStatus[]
   active: string | null
 }
@@ -37,6 +38,7 @@ export interface RenderApi {
   setActive: (backendId: string | null) => Promise<void>
   set: (payload: SetWallpaperPayload) => Promise<SetWallpaperResult>
   stop: () => Promise<void>
+  install: (backendId: string) => Promise<{ ok: boolean; error?: string }>
 }
 
 export interface DetectedWorkshopFolder {
