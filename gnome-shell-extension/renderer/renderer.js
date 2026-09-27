@@ -146,10 +146,20 @@ const buildVideoEntry = (path) => {
 // le main thread. L'alternative GstPlay + gtk4paintablesink panique en Rust
 // (« Value accessed from different thread ») au teardown du pipeline, ce qui
 // tuait le renderer à chaque changement de wallpaper à chaud.
+const wantLoop = () => (settings ? settings.get_boolean('loop') : true)
+
 const buildVideoPlayer = (path) => {
   const media = Gtk.MediaFile.new_for_filename(path)
-  media.set({ loop: settings ? settings.get_boolean('loop') : true })
+  media.set({ loop: wantLoop() })
   media.muted = settings ? settings.get_boolean('mute') : true
+  // Filet de sécurité : la propriété « loop » de Gtk.MediaStream peut être
+  // ignorée par le backend GStreamer selon le flux. Au signal « ended », on
+  // relance explicitement depuis le début.
+  media.connect('notify::ended', () => {
+    if (!media.ended || !wantLoop()) return
+    media.seek(0)
+    media.play()
+  })
   media.play()
   return { path, media, paintable: media }
 }
@@ -251,9 +261,8 @@ const syncMuteState = () => {
 }
 
 const syncLoopState = () => {
-  const wantLoop = settings ? settings.get_boolean('loop') : true
   for (const entry of players.values()) {
-    if (entry.media) entry.media.set({ loop: wantLoop })
+    if (entry.media) entry.media.set({ loop: wantLoop() })
   }
 }
 
