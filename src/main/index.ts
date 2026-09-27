@@ -52,6 +52,10 @@ function createWindow(): void {
     win.show()
   })
 
+  ipcMain.on('wallpaper:set', (_event, wallpaperId: string) => {
+    console.log(`[test] wallpaper:set reçu — id=${wallpaperId}`)
+  })
+
   ipcMain.on('window:minimize', () => win.minimize())
   ipcMain.on('window:maximize', () => {
     if (win.isMaximized()) {

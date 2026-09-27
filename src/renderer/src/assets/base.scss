@@ -10,3 +10,12 @@ body {
   color: #e8eaec;
   overflow: hidden;
 }
+
+.wallpaper-card-action {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.wallpaper-card:hover .wallpaper-card-action {
+  opacity: 1;
+}

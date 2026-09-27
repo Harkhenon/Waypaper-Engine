@@ -11,6 +11,13 @@ const windowApi = {
   }
 }
 
+const wallpaperApi = {
+  set: (wallpaperId: string): void => {
+    console.log(`[test] wallpaperApi.set — ${wallpaperId}`)
+    ipcRenderer.send('wallpaper:set', wallpaperId)
+  }
+}
+
 const testApi = {
   ping: (): string => {
     const message = 'pong'
@@ -21,6 +28,7 @@ const testApi = {
 
 const api = {
   window: windowApi,
+  wallpaper: wallpaperApi,
   test: testApi
 }
 
