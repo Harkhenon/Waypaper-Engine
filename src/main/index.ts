@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, dialog, ipcMain } from 'electron'
-import { readConfig, scanWorkshopFolder, writeConfig } from './workshop'
+import { detectWorkshopFolders, readConfig, scanWorkshopFolder, writeConfig } from './workshop'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 
@@ -47,8 +47,21 @@ ipcMain.handle('workshop:pick-folder', async () => {
   return result.canceled ? null : result.filePaths[0]
 })
 
+ipcMain.handle('workshop:detect-folders', () => detectWorkshopFolders())
+
+ipcMain.on('workshop:open-steam-store', () => {
+  void shell.openExternal('steam://store/431960')
+})
+
 ipcMain.handle('workshop:scan', async () => {
-  const config = await readConfig()
+  let config = await readConfig()
+  if (!config.folder) {
+    const detected = await detectWorkshopFolders()
+    if (detected.length > 0) {
+      config = { folder: detected[0].path }
+      await writeConfig(config)
+    }
+  }
   if (!config.folder) {
     return { folder: null, items: [] as Awaited<ReturnType<typeof scanWorkshopFolder>> }
   }

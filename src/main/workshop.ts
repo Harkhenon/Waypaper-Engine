@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import { promises as fs } from 'fs'
 import { join, resolve } from 'path'
+import { DEFAULT_WORKSHOP_FOLDERS } from '../shared/workshop'
 
 interface WorkshopConfig {
   folder: string | null
@@ -84,4 +85,27 @@ export async function scanWorkshopFolder(folder: string): Promise<ScannedItem[]>
     }
   }
   return items
+}
+
+export interface DetectedFolder {
+  value: string
+  label: string
+  path: string
+}
+
+export async function detectWorkshopFolders(): Promise<DetectedFolder[]> {
+  const home = app.getPath('home')
+  const detected: DetectedFolder[] = []
+  for (const folder of DEFAULT_WORKSHOP_FOLDERS) {
+    const resolved = folder.path.replace(/^~/, home)
+    try {
+      const stat = await fs.stat(resolved)
+      if (stat.isDirectory()) {
+        detected.push({ value: folder.value, label: folder.label, path: resolved })
+      }
+    } catch {
+      // dossier absent — installation non détectée
+    }
+  }
+  return detected
 }

@@ -31,10 +31,13 @@ export default function App() {
             {section === 'settings' && (
               <SettingsView
                 workshopFolder={workshop.folder}
+                workshopDetectedFolders={workshop.detectedFolders}
                 workshopScanning={workshop.scanning}
                 workshopItems={workshop.items}
                 onPickWorkshopFolder={() => void workshop.pickAndSetFolder()}
+                onSelectWorkshopFolder={(path) => void workshop.setFolderAndScan(path)}
                 onScanWorkshop={() => void workshop.scan()}
+                onOpenSteamStore={workshop.openSteamStore}
               />
             )}
           </Box>

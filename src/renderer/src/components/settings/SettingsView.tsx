@@ -6,10 +6,13 @@ import type { ScannedWorkshopItem } from '../../hooks/useWorkshop'
 
 interface SettingsViewProps {
   workshopFolder: string | null
+  workshopDetectedFolders: { value: string; label: string; path: string }[]
   workshopScanning: boolean
   workshopItems: ScannedWorkshopItem[]
   onPickWorkshopFolder: () => void
+  onSelectWorkshopFolder: (path: string) => void
   onScanWorkshop: () => void
+  onOpenSteamStore: () => void
 }
 
 const BACKEND_OPTIONS = DISPLAY_BACKENDS.map((b) => ({
@@ -19,20 +22,26 @@ const BACKEND_OPTIONS = DISPLAY_BACKENDS.map((b) => ({
 
 export function SettingsView({
   workshopFolder,
+  workshopDetectedFolders,
   workshopScanning,
   workshopItems,
   onPickWorkshopFolder,
-  onScanWorkshop
+  onSelectWorkshopFolder,
+  onScanWorkshop,
+  onOpenSteamStore
 }: SettingsViewProps) {
   return (
     <Stack gap="md" maw={560}>
       <Title order={3}>Paramètres</Title>
       <WorkshopFolderSection
         folder={workshopFolder}
+        detectedFolders={workshopDetectedFolders}
         scanning={workshopScanning}
         itemCount={workshopItems.length}
         onPickFolder={onPickWorkshopFolder}
+        onSelectFolder={(value) => value && onSelectWorkshopFolder(value)}
         onScan={onScanWorkshop}
+        onOpenSteam={onOpenSteamStore}
       />
       <Divider />
       <Select

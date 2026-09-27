@@ -23,11 +23,19 @@ export interface WallpaperApi {
   set: (wallpaperId: string) => void
 }
 
+export interface DetectedWorkshopFolder {
+  value: string
+  label: string
+  path: string
+}
+
 export interface WorkshopApi {
   getFolder: () => Promise<{ folder: string | null }>
   setFolder: (folder: string | null) => Promise<string | null>
   pickFolder: () => Promise<string | null>
   scan: () => Promise<WorkshopScanResult>
+  detectFolders: () => Promise<DetectedWorkshopFolder[]>
+  openSteamStore: () => void
 }
 
 export interface TestApi {

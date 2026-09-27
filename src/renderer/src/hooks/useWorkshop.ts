@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+export interface DetectedWorkshopFolder {
+  value: string
+  label: string
+  path: string
+}
+
 export interface ScannedWorkshopItem {
   id: string
   folder: string
@@ -46,6 +52,7 @@ export function toWallpaper(item: ScannedWorkshopItem): Wallpaper {
 export function useWorkshop() {
   const [folder, setFolder] = useState<string | null>(null)
   const [items, setItems] = useState<ScannedWorkshopItem[]>([])
+  const [detectedFolders, setDetectedFolders] = useState<DetectedWorkshopFolder[]>([])
   const [scanning, setScanning] = useState(false)
 
   const scan = useCallback(async (): Promise<void> => {
@@ -62,8 +69,10 @@ export function useWorkshop() {
   useEffect(() => {
     let cancelled = false
     const run = async (): Promise<void> => {
+      const detected = await window.api.workshop.detectFolders()
       const result = await window.api.workshop.scan()
       if (cancelled) return
+      setDetectedFolders(detected)
       setFolder(result.folder)
       setItems(result.items)
     }
@@ -86,5 +95,24 @@ export function useWorkshop() {
     await scan()
   }, [scan])
 
-  return { folder, items, scanning, scan, pickAndSetFolder, setFolderAndScan }
+  const openSteamStore = useCallback((): void => {
+    window.api.workshop.openSteamStore()
+  }, [])
+
+  const refreshDetected = useCallback(async (): Promise<void> => {
+    const detected = await window.api.workshop.detectFolders()
+    setDetectedFolders(detected)
+  }, [])
+
+  return {
+    folder,
+    items,
+    detectedFolders,
+    scanning,
+    scan,
+    pickAndSetFolder,
+    setFolderAndScan,
+    openSteamStore,
+    refreshDetected
+  }
 }

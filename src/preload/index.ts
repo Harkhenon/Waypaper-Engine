@@ -32,13 +32,24 @@ const wallpaperApi = {
   }
 }
 
+export interface DetectedWorkshopFolder {
+  value: string
+  label: string
+  path: string
+}
+
 const workshopApi = {
   getFolder: (): Promise<{ folder: string | null }> =>
     ipcRenderer.invoke('workshop:get-folder'),
   setFolder: (folder: string | null): Promise<string | null> =>
     ipcRenderer.invoke('workshop:set-folder', folder),
   pickFolder: (): Promise<string | null> => ipcRenderer.invoke('workshop:pick-folder'),
-  scan: (): Promise<WorkshopScanResult> => ipcRenderer.invoke('workshop:scan')
+  scan: (): Promise<WorkshopScanResult> => ipcRenderer.invoke('workshop:scan'),
+  detectFolders: (): Promise<DetectedWorkshopFolder[]> =>
+    ipcRenderer.invoke('workshop:detect-folders'),
+  openSteamStore: (): void => {
+    ipcRenderer.send('workshop:open-steam-store')
+  }
 }
 
 const testApi = {
@@ -59,6 +70,5 @@ const api = {
 if (process.contextIsolated) {
   contextBridge.exposeInMainWorld('api', api)
 } else {
-  // @ts-expect-error fallback when context isolation is disabled
-  window.api = api
+  ;(window as unknown as { api: typeof api }).api = api
 }
