@@ -216,6 +216,10 @@ const createWindow = (index) => {
   })
   window.set_size_request(geometry.width, geometry.height)
   window.set_resizable(false)
+  // Fermer depuis le dock (clic sur l'icône) ne doit pas détruire la fenêtre
+  // : le clone du shell serait figé et la dernière fermeture tuerait le
+  // renderer. On ignore la demande et on re-minimise via le WindowManager.
+  window.connect('close-request', () => true)
   windows.set(index, window)
   // Pas de placement direct en GTK4 : le titre transporte la géométrie
   // mutter et le WindowManager de l'extension positionne la fenêtre
@@ -228,7 +232,8 @@ const destroyWindow = (index) => {
   const window = windows.get(index)
   if (!window) return
   windows.delete(index)
-  window.close()
+  // destroy() et non close() : close est bloqué par close-request.
+  window.destroy()
 }
 
 const syncPlaybackState = () => {
@@ -272,6 +277,10 @@ const RendererApp = GObject.registerClass(
   class RendererApp extends Gtk.Application {
     vfunc_activate() {
       applicationInstance = this
+      // Sans hold(), Gtk.Application se termine quand sa dernière fenêtre
+      // ferme — même avec close-request bloqué, un close() programmatique
+      // (retrait d'assignation) arrêterait le renderer.
+      this.hold()
       const { byMonitor, globalPath } = readAssignments()
       const maxIndex = Math.max(
         -1,

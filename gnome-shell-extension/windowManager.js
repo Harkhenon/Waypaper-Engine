@@ -4,6 +4,7 @@
 // `@<APP_ID>!<json>|<index>`.
 // Adapté de Hanabi (jeffshee/gnome-ext-hanabi) et de DING — GPL-3.0-or-later.
 import GLib from 'gi://GLib'
+import Meta from 'gi://Meta'
 import { APPLICATION_ID } from './constants.js'
 
 const MINIMIZE_RESYNC_DELAY_MS = 250
@@ -49,6 +50,14 @@ class ManagedWindow {
       })
     ]
     this._parseTitle()
+    // Type DESKTOP : mutter exclut ces fenêtres de la barre des tâches et du
+    // dock (skip-taskbar est en lecture seule, mais le type est modifiable —
+    // technique utilisée par DING pour ses fenêtres de bureau).
+    try {
+      this._window.set_type(Meta.WindowType.DESKTOP)
+    } catch (e) {
+      console.warn(`[waypaper] type DESKTOP non applicable : ${e}`)
+    }
   }
 
   _parseTitle() {
