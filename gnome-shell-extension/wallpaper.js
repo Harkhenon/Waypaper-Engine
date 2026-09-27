@@ -10,6 +10,18 @@ import { APPLICATION_ID } from './constants.js'
 const FADE_DURATION = 500
 const RETRY_INTERVAL_MS = 500
 
+// Index d'écran transporté par le titre de la fenêtre du renderer
+// (`@<APP_ID>!<json>|<index>`). C'est l'identifiant stable : get_monitor()
+// dépend de la position actuelle de la fenêtre, que mutter ne fixe qu'après
+// le map (les fenêtres apparaissent d'abord en cascade sur le primaire), ce
+// qui provoquait l'attachement des clones sur la mauvaise fenêtre.
+const rendererMonitorIndex = (title) => {
+  const marker = `@${APPLICATION_ID}!`
+  if (!title?.startsWith(marker)) return null
+  const index = Number.parseInt(title.split('|').pop(), 10)
+  return Number.isInteger(index) ? index : null
+}
+
 export const LiveWallpaper = GObject.registerClass(
   class LiveWallpaper extends St.Widget {
     constructor(backgroundActor) {
@@ -80,15 +92,13 @@ export const LiveWallpaper = GObject.registerClass(
     }
 
     _findRendererActor() {
-      const rendererActors = global
-        .get_window_actors()
-        .filter((actor) => actor.meta_window.title?.includes(APPLICATION_ID))
-      // Pas de repli sur le premier acteur trouvé : c'est lui qui provoquait la
-      // « duplication » (deux fonds clonant la même fenêtre).
       return (
-        rendererActors.find(
-          (actor) => actor.meta_window.get_monitor() === this._backgroundActor.monitor
-        ) ?? null
+        global
+          .get_window_actors()
+          .find(
+            (actor) =>
+              rendererMonitorIndex(actor.meta_window.title) === this._backgroundActor.monitor
+          ) ?? null
       )
     }
   }
