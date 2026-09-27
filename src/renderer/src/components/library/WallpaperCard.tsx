@@ -41,20 +41,17 @@ export function WallpaperCard({ wallpaper, onSet, monitors }: WallpaperCardProps
       {supported && (
         <Menu position="bottom-end" withinPortal shadow="md">
           <Menu.Target>
-            <Tooltip label="Définir comme wallpaper" position="bottom" withinPortal>
-              <ActionIcon
-                variant="filled"
-                color="teal"
-                aria-label="Définir comme wallpaper"
-                pos="absolute"
-                top={8}
-                right={8}
-                className="wallpaper-card-action"
-                onClick={handleSet}
-              >
-                <IconDeviceDesktop size={16} stroke={1.5} />
-              </ActionIcon>
-            </Tooltip>
+            <ActionIcon
+              variant="filled"
+              color="teal"
+              aria-label="Appliquer le wallpaper"
+              pos="absolute"
+              top={8}
+              right={8}
+              className="wallpaper-card-action"
+            >
+              <IconDeviceDesktop size={16} stroke={1.5} />
+            </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Label>Appliquer sur</Menu.Label>
