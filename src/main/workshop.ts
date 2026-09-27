@@ -67,7 +67,7 @@ interface ProjectMetadata {
   pkgPath: string | null
 }
 
-async function readProjectMetadata(itemFolder: string): Promise<ProjectMetadata> {
+export async function readProjectMetadata(itemFolder: string): Promise<ProjectMetadata> {
   const plain = await readProjectJson(itemFolder)
   if (plain) return { project: plain, pkgPath: null }
 
@@ -83,7 +83,7 @@ async function readProjectMetadata(itemFolder: string): Promise<ProjectMetadata>
   return { project: null, pkgPath: null }
 }
 
-async function resolvePreview(
+export async function resolvePreview(
   itemFolder: string,
   itemId: string,
   project: Record<string, unknown> | null,

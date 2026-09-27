@@ -1,13 +1,20 @@
 import { spawn } from 'child_process'
 import { promises as fs } from 'fs'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import {
   RENDER_BACKENDS,
   type RenderBackendDef,
   type SetWallpaperPayload,
   type SetWallpaperResult
 } from '../shared/render'
-import { readConfig, writeConfig, type WorkshopConfig } from './workshop'
+import {
+  readConfig,
+  writeConfig,
+  readProjectMetadata,
+  resolvePreview,
+  type WorkshopConfig
+} from './workshop'
 
 export interface BackendStatus {
   id: string
@@ -131,29 +138,9 @@ export async function findVideoFile(folder: string): Promise<string | null> {
   return null
 }
 
-async function findPreviewFile(folder: string): Promise<string | null> {
-  const candidates = ['preview.jpg', 'preview.jpeg', 'preview.png', 'preview.webp']
-  for (const name of candidates) {
-    try {
-      const stat = await fs.stat(join(folder, name))
-      if (stat.isFile()) return join(folder, name)
-    } catch {
-      continue
-    }
-  }
-  try {
-    const entries = await fs.readdir(join(folder, 'preview-cache'), { withFileTypes: true })
-    const cached = entries.find((e) => e.isFile() && e.name.startsWith('preview-'))
-    if (cached) return join(folder, 'preview-cache', cached.name)
-  } catch {
-    return null
-  }
-  return null
-}
-
 async function setGnomeBackground(imagePath: string): Promise<SetWallpaperResult> {
   return new Promise<SetWallpaperResult>((resolve) => {
-    const uri = `file://${imagePath}`
+    const uri = pathToFileURL(imagePath).href
     const child = spawn('gsettings', [
       'set',
       'org.gnome.desktop.background',
@@ -167,10 +154,15 @@ async function setGnomeBackground(imagePath: string): Promise<SetWallpaperResult
         resolve({ ok: false, error: `gsettings indisponible : ${err.message}` })
       }
     })
+    let stderr = ''
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
     child.on('close', (code) => {
       if (settled) return
       settled = true
       if (code !== 0) {
+        console.error(`[render:gnome] gsettings échec : ${stderr.trim()}`)
         resolve({ ok: false, error: `gsettings a échoué (code ${code}).` })
         return
       }
@@ -208,9 +200,10 @@ export async function setWallpaper(payload: SetWallpaperPayload): Promise<SetWal
   await stopWallpaper()
 
   if (active.id === 'gnome-static') {
-    const preview = await findPreviewFile(payload.folder)
+    const { project, pkgPath } = await readProjectMetadata(payload.folder)
+    const preview = await resolvePreview(payload.folder, payload.wallpaperId, project, pkgPath)
     if (!preview) {
-      return { ok: false, error: 'Aucune image d\'aperçu trouvée pour ce wallpaper.' }
+      return { ok: false, error: "Aucune image d'aperçu trouvée pour ce wallpaper." }
     }
     return setGnomeBackground(preview)
   }
