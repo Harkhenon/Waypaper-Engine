@@ -285,7 +285,16 @@ export async function setWallpaper(payload: SetWallpaperPayload): Promise<SetWal
     if (!videoFile) {
       return { ok: false, error: 'Aucun fichier vidéo trouvé dans le dossier du wallpaper.' }
     }
-    await setExtensionVideoPath(videoFile)
+    try {
+      await setExtensionVideoPath(videoFile)
+    } catch (err) {
+      return {
+        ok: false,
+        error:
+          `Le schéma gsettings de l'extension n'est pas installé — recliquez « Installer ` +
+          `l'extension » dans les Paramètres. Détail : ${err instanceof Error ? err.message : String(err)}`
+      }
+    }
     return { ok: true }
   }
 
