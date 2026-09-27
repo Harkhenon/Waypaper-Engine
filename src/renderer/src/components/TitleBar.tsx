@@ -20,7 +20,13 @@ export function TitleBar() {
   }, [api])
 
   return (
-    <Box style={titleBarStyle} h={36} px="sm" bg="anthracite.8">
+    <Box
+      style={titleBarStyle}
+      h={36}
+      px="sm"
+      bg="anthracite.8"
+      onDoubleClick={() => api.window.toggleMaximize()}
+    >
       <Group justify="space-between" h="100%" wrap="nowrap">
         <Group gap={6} h="100%">
           <IconPhoto size={16} stroke={1.5} />
