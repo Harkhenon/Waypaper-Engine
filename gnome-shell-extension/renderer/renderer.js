@@ -213,35 +213,14 @@ const readMonitorsJson = () => {
   }
 }
 
-const gdkMonitors = () => {
+const gdkMonitorCount = () => {
   const display = Gdk.Display.get_default()
-  return display ? [...display.get_monitors()] : []
-}
-
-// Traduit un index mutter (celui de monitors-json, utilisé par l'app et le
-// shell) en moniteur GDK : les deux ordonnancements ne coïncident pas
-// toujours. Correspondance par connecteur, puis par position, puis repli
-// sur l'ordre brut.
-const gdkMonitorFor = (index) => {
-  const monitors = gdkMonitors()
-  const meta = readMonitorsJson().find((m) => m.index === index)
-  if (meta?.connector) {
-    const byConnector = monitors.find((g) => g.connector === meta.connector)
-    if (byConnector) return byConnector
-  }
-  if (meta) {
-    const byPosition = monitors.find((g) => {
-      const geo = g.get_geometry()
-      return geo.x === meta.x && geo.y === meta.y
-    })
-    if (byPosition) return byPosition
-  }
-  return monitors[index] ?? null
+  return display ? display.get_monitors().get_n_items() : 0
 }
 
 // Géométrie mutter (monitors-json) : c'est celle du titre de fenêtre — le
-// WindowManager du shell repositionne via move_frame dans le référentiel
-// mutter.
+// WindowManager du shell repositionne la fenêtre (move_frame) dans le
+// référentiel mutter, indépendamment de l'ordre GDK.
 const mutterGeometry = (index) => {
   const meta = readMonitorsJson().find((m) => m.index === index)
   return meta ?? { x: 0, y: 0, width: 640, height: 480, scale: 1 }
@@ -249,7 +228,7 @@ const mutterGeometry = (index) => {
 
 const monitorCount = () => {
   const published = readMonitorsJson()
-  return published.length > 0 ? published.length : gdkMonitors().length
+  return published.length > 0 ? published.length : gdkMonitorCount()
 }
 
 const createWindow = (index) => {
@@ -264,12 +243,10 @@ const createWindow = (index) => {
   window.set_size_request(geometry.width, geometry.height)
   window.set_resizable(false)
   windows.set(index, window)
+  // Pas de placement direct en GTK4 : le titre transporte la géométrie
+  // mutter et le WindowManager de l'extension positionne la fenêtre
+  // (move_frame) — c'est le canal fiable, indépendant de l'ordre GDK.
   window.present()
-  const gdkMonitor = gdkMonitorFor(index)
-  if (gdkMonitor) {
-    window.set_monitor(gdkMonitor)
-    window.default_size = [geometry.width, geometry.height]
-  }
   return window
 }
 
