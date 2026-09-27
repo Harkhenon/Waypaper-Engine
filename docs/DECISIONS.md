@@ -87,22 +87,22 @@ canaux IPC réels.
 
 **Motif** : règle projet explicite, applicable dès le scaffolding.
 
-## ADR-009 — UI sous XWayland par défaut (session Wayland)
+## ADR-009 — Backend d'affichage de l'UI : Wayland natif par défaut
 
-**Décision** : sous toute session Wayland, l'UI Electron bascule par défaut
-sur `ozone-platform=x11` (XWayland). La variable `WAYPAPER_NATIVE_WAYLAND=1`
-force le backend Wayland natif avec `use-angle=gl` et les désactivations
-Vulkan (`Vulkan,VulkanFromANGLE,DefaultANGLEVulkan`, `disable-vulkan-surface`,
-`disable-vulkan-native-surface`).
+**Décision** : sous session Wayland, l'UI utilise le backend ozone Wayland
+natif, avec `use-angle=gl` et les désactivations Vulkan
+(`Vulkan,VulkanFromANGLE,DefaultANGLEVulkan`, `disable-vulkan-surface`,
+`disable-vulkan-native-surface`). La variable `WAYPAPER_FORCE_XWAYLAND=1`
+bascule sur XWayland (`ozone-platform=x11`). Le message Chromium
+« --ozone-platform=wayland is not compatible with Vulkan » est cosmétique
+dans notre configuration (GPU NVIDIA testé : la fenêtre s'affiche correctement).
 
-**Motif** : bug amont Electron/Chromium non résolu — le backend ozone
-Wayland tente d'initialiser Vulkan même avec les flags de désactivation
-(référence : issues Electron #36633, Brave #55805), le cas NVIDIA Wayland
-étant le plus récalcitrant. La détection GPU par variables d'environnement
-est peu fiable sur les sessions standard (variables non définies). Sans
-impact produit : le rendu des wallpapers est délégué aux backends
-d'affichage (ADR-004/006), l'UI n'est pas le chemin de rendu. À réexaminer
-quand Electron corrigera l'amont.
+**Motif** : le message d'erreur Vulkan se révèle bénin une fois le vrai
+crash (ADR-010) corrigé. Testé sur Ubuntu + NVIDIA + Wayland : le natif
+s'affiche, XWayland présente une fenêtre invisible avec le software
+bitmap presenter. Sans impact produit : le rendu des wallpapers reste
+délégué aux backends d'affichage (ADR-004/006), l'UI n'est pas le chemin
+de rendu.
 
 
 ## ADR-010 — Fenêtre frameless (frame: false)
@@ -119,3 +119,12 @@ avant le crash). Correctif amont en cours (PR Electron #54365, branches
 43/44/45). L'app devra de toute façon offrir sa propre barre de titre
 cohérente avec le thème anthracite ; ce bug précipite une décision qui
 était déjà naturelle pour ce type d'application.
+
+## ADR-011 — GTK3 explicite sous Linux
+
+**Décision** : `--gtk-version=3` est posé inconditionnellement sous Linux
+avant `app.whenReady()`.
+
+**Motif** : Ubuntu + session GNOME : l'init GTK4 d'Electron loggue
+`Schema org.gnome.desktop.interface does not have key font-antialiasing`.
+Forcer GTK3 évite ce chemin et le rendu des polices reste correct.

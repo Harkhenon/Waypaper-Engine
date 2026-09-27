@@ -9,44 +9,29 @@ function isWaylandSession(): boolean {
 }
 
 function configureDisplayBackend(): void {
-  const nativeWaylandRequested = process.env['WAYPAPER_NATIVE_WAYLAND'] === '1'
-  const wayland = isWaylandSession()
-  const hasXwayland = Boolean(process.env['DISPLAY'])
-
   if (process.platform === 'linux') {
     app.commandLine.appendSwitch('gtk-version', '3')
   }
 
-  console.log(
-    `[waypaper] env : DISPLAY=${process.env['DISPLAY'] ?? '(vide)'} ` +
-      `WAYLAND_DISPLAY=${process.env['WAYLAND_DISPLAY'] ?? '(vide)'} ` +
-      `XDG_SESSION_TYPE=${process.env['XDG_SESSION_TYPE'] ?? '(vide)'}`
-  )
-
-  if (!wayland) {
+  if (!isWaylandSession()) {
     console.log('[waypaper] session X11 : backend natif x11')
     return
   }
 
-  if (nativeWaylandRequested || !hasXwayland) {
-    console.log(
-      nativeWaylandRequested
-        ? '[waypaper] session Wayland : backend natif demandé (WAYPAPER_NATIVE_WAYLAND=1)'
-        : '[waypaper] session Wayland : XWayland indisponible (DISPLAY vide), backend natif'
-    )
-    app.commandLine.appendSwitch('use-angle', 'gl')
-    app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan')
-    app.commandLine.appendSwitch('disable-vulkan-surface')
-    app.commandLine.appendSwitch('disable-vulkan-native-surface')
+  if (process.env['WAYPAPER_FORCE_XWAYLAND'] === '1') {
+    console.log('[waypaper] session Wayland : XWayland demandé (WAYPAPER_FORCE_XWAYLAND=1)')
+    app.commandLine.appendSwitch('ozone-platform', 'x11')
     return
   }
 
-  console.log('[waypaper] session Wayland : bascule UI sur XWayland (ozone x11)')
-  app.commandLine.appendSwitch('ozone-platform', 'x11')
+  console.log('[waypaper] session Wayland : backend natif Wayland')
+  app.commandLine.appendSwitch('use-angle', 'gl')
+  app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan')
+  app.commandLine.appendSwitch('disable-vulkan-surface')
+  app.commandLine.appendSwitch('disable-vulkan-native-surface')
 }
 
 function createWindow(): void {
-  console.log('[waypaper] createWindow : début')
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -62,34 +47,9 @@ function createWindow(): void {
       sandbox: false
     }
   })
-  console.log('[waypaper] createWindow : BrowserWindow créé')
 
   win.on('ready-to-show', () => {
-    console.log('[waypaper] fenêtre : ready-to-show')
     win.show()
-    win.focus()
-    console.log(
-      `[waypaper] après show : visible=${win.isVisible()} ` +
-        `bounds=${JSON.stringify(win.getBounds())}`
-    )
-  })
-
-  win.on('close', () => {
-    console.log('[waypaper] fenêtre : close')
-  })
-
-  win.on('closed', () => {
-    console.log('[waypaper] fenêtre : closed')
-  })
-
-  win.webContents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL) => {
-    console.error(
-      `[waypaper] chargement échoué : ${errorCode} ${errorDescription} ${validatedURL}`
-    )
-  })
-
-  win.webContents.on('did-finish-load', () => {
-    console.log('[waypaper] chargement terminé')
   })
 
   win.webContents.setWindowOpenHandler((details) => {
@@ -111,11 +71,6 @@ if (process.env['WAYPAPER_DISABLE_GPU'] === '1') {
   app.disableHardwareAcceleration()
 }
 
-if (process.env['WAYPAPER_NO_SANDBOX'] === '1') {
-  console.log('[waypaper] WAYPAPER_NO_SANDBOX=1 : sandbox Chromium désactivé (diagnostic)')
-  app.commandLine.appendSwitch('no-sandbox')
-}
-
 app.on('child-process-gone', (_event, details) => {
   console.error('[waypaper] process enfant terminé :', JSON.stringify(details, null, 2))
 })
@@ -125,16 +80,14 @@ app.on('render-process-gone', (_event, _wc, details) => {
 })
 
 void app.whenReady().then(() => {
-  console.log('[waypaper] whenReady résolu, création de la fenêtre')
   createWindow()
 
-  app.on('activate', function () {
+  app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
 app.on('window-all-closed', () => {
-  console.log('[waypaper] window-all-closed : quitter')
   if (process.platform !== 'darwin') {
     app.quit()
   }
