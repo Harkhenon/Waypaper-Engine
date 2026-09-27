@@ -16,6 +16,8 @@ const RELOGIN_REQUIRED =
   'pour que GNOME Shell la charge (le shell ne recharge pas une extension ' +
   'active sans reconnexion).'
 
+const RUN_TIMEOUT_MS = 8000
+
 function run(
   cmd: string,
   args: string[]
@@ -24,14 +26,26 @@ function run(
     const child = spawn(cmd, args)
     let stdout = ''
     let stderr = ''
+    // Un CLI (gnome-extensions, gsettings…) peut pendre indéfiniment si le
+    // bus D-Bus du shell est dans un état transitoire après purge/relogin.
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL')
+      resolve({ code: -1, stdout, stderr: `timeout : ${cmd} n'a pas répondu` })
+    }, RUN_TIMEOUT_MS)
     child.stdout?.on('data', (chunk: Buffer) => {
       stdout += chunk.toString()
     })
     child.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString()
     })
-    child.on('error', () => resolve({ code: -1, stdout, stderr: `impossible de lancer ${cmd}` }))
-    child.on('close', (code) => resolve({ code: code ?? -1, stdout, stderr }))
+    child.on('error', () => {
+      clearTimeout(timer)
+      resolve({ code: -1, stdout, stderr: `impossible de lancer ${cmd}` })
+    })
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      resolve({ code: code ?? -1, stdout, stderr })
+    })
   })
 }
 
@@ -72,14 +86,20 @@ async function shellExtensionInfo(): Promise<{
   known: boolean
   enabled: boolean
 }> {
-  const listAll = await run('gnome-extensions', ['list'])
-  const known =
-    listAll.code === 0 && listAll.stdout.split('\n').some((line) => line.trim() === EXTENSION_UUID)
-  const listEnabled = await run('gnome-extensions', ['list', '--enabled'])
-  const enabled =
-    listEnabled.code === 0 &&
-    listEnabled.stdout.split('\n').some((line) => line.trim() === EXTENSION_UUID)
-  return { known, enabled }
+  try {
+    const listAll = await run('gnome-extensions', ['list'])
+    const known =
+      listAll.code === 0 &&
+      listAll.stdout.split('\n').some((line) => line.trim() === EXTENSION_UUID)
+    const listEnabled = await run('gnome-extensions', ['list', '--enabled'])
+    const enabled =
+      listEnabled.code === 0 &&
+      listEnabled.stdout.split('\n').some((line) => line.trim() === EXTENSION_UUID)
+    return { known, enabled }
+  } catch (err) {
+    console.error(`[gnome-extension] shellExtensionInfo a échoué : ${err}`)
+    return { known: false, enabled: false }
+  }
 }
 
 export async function getExtensionStatus(): Promise<GnomeExtensionStatus> {

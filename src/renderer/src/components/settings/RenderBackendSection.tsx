@@ -9,6 +9,7 @@ import type { RenderState } from '../../hooks/useRender'
 interface RenderBackendSectionProps {
   state: RenderState | null
   detecting: boolean
+  detectError: string | null
   onDetect: () => void
   onSelect: (backendId: string | null) => void
   onInstall: (backendId: string) => void
@@ -28,6 +29,7 @@ const DESKTOP_LABELS: Record<string, string> = {
 export function RenderBackendSection({
   state,
   detecting,
+  detectError,
   onDetect,
   onSelect,
   onInstall,
@@ -37,16 +39,41 @@ export function RenderBackendSection({
 }: RenderBackendSectionProps) {
   const [installing, setInstalling] = useState<string | null>(null)
 
+  const detectButton = (
+    <ActionIcon
+      variant="subtle"
+      aria-label="Relancer la détection"
+      onClick={onDetect}
+      loading={detecting}
+    >
+      <IconRefreshDot size={16} stroke={1.5} />
+    </ActionIcon>
+  )
+
   if (!state) {
     return (
       <Stack gap="xs">
-        <Text fw={500}>Backend d&apos;affichage</Text>
-        <Group gap="xs">
-          <Loader size="sm" />
-          <Text size="sm" c="anthracite.3">
-            Détection de la session et des outils de rendu…
-          </Text>
+        <Group justify="space-between">
+          <Text fw={500}>Backend d&apos;affichage</Text>
+          {detectButton}
         </Group>
+        {detectError ? (
+          <Alert color="red" title="Échec de la détection">
+            <Stack gap="xs">
+              <Text size="sm">{detectError}</Text>
+              <Button size="xs" variant="light" onClick={onDetect} loading={detecting}>
+                Réessayer
+              </Button>
+            </Stack>
+          </Alert>
+        ) : (
+          <Group gap="xs">
+            <Loader size="sm" />
+            <Text size="sm" c="anthracite.3">
+              Détection de la session et des outils de rendu…
+            </Text>
+          </Group>
+        )}
       </Stack>
     )
   }
@@ -58,14 +85,7 @@ export function RenderBackendSection({
     <Stack gap="xs">
       <Group justify="space-between">
         <Text fw={500}>Backend d&apos;affichage</Text>
-        <ActionIcon
-          variant="subtle"
-          aria-label="Relancer la détection"
-          onClick={onDetect}
-          loading={detecting}
-        >
-          <IconRefreshDot size={16} stroke={1.5} />
-        </ActionIcon>
+        {detectButton}
       </Group>
 
       {available.length === 0 ? (
@@ -117,10 +137,6 @@ export function RenderBackendSection({
         </Radio.Group>
       )}
 
-      <Text size="xs" c="anthracite.3">
-        Session {state.sessionType}, bureau {DESKTOP_LABELS[state.desktop]}. Le backend actif est
-        utilisé pour le rendu des wallpapers.
-      </Text>
       {state.desktop === 'gnome' && (
         <GnomeExtensionSection
           status={gnomeExtensionStatus}

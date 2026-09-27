@@ -84,6 +84,7 @@ export default function App() {
                 onRedetectWorkshop={() => void workshop.redetect()}
                 renderState={render.state}
                 renderDetecting={render.detecting}
+                renderDetectError={render.detectError}
                 onDetectRender={() => void render.detect()}
                 onSelectRenderBackend={(id) => void render.setActive(id)}
                 onInstallRenderBackend={(id) => {

@@ -18,6 +18,7 @@ interface SettingsViewProps {
   onRedetectWorkshop: () => void
   renderState: RenderState | null
   renderDetecting: boolean
+  renderDetectError: string | null
   onDetectRender: () => void
   onSelectRenderBackend: (backendId: string | null) => void
   onInstallRenderBackend: (backendId: string) => void
@@ -42,6 +43,7 @@ export function SettingsView({
   onRedetectWorkshop,
   renderState,
   renderDetecting,
+  renderDetectError,
   onDetectRender,
   onSelectRenderBackend,
   onInstallRenderBackend,
@@ -71,6 +73,7 @@ export function SettingsView({
       <RenderBackendSection
         state={renderState}
         detecting={renderDetecting}
+        detectError={renderDetectError}
         onDetect={onDetectRender}
         onSelect={onSelectRenderBackend}
         onInstall={onInstallRenderBackend}

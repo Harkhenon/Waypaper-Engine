@@ -73,14 +73,23 @@ export function useRender() {
     }
   }, [fetchExtension])
 
+  const [detectError, setDetectError] = useState<string | null>(null)
+
   const fetchState = useCallback(async (): Promise<RenderState> => {
-    return window.api.render.detect()
+    try {
+      return await window.api.render.detect()
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : String(err), { cause: err })
+    }
   }, [])
 
   const detect = useCallback(async (): Promise<void> => {
     setDetecting(true)
+    setDetectError(null)
     try {
       setState(await fetchState())
+    } catch (err) {
+      setDetectError(err instanceof Error ? err.message : String(err))
     } finally {
       setDetecting(false)
     }
@@ -89,8 +98,12 @@ export function useRender() {
   useEffect(() => {
     let cancelled = false
     const run = async (): Promise<void> => {
-      const result = await fetchState()
-      if (!cancelled) setState(result)
+      try {
+        const result = await fetchState()
+        if (!cancelled) setState(result)
+      } catch (err) {
+        if (!cancelled) setDetectError(err instanceof Error ? err.message : String(err))
+      }
     }
     void run()
     return () => {
@@ -165,6 +178,7 @@ export function useRender() {
   return {
     state,
     detecting,
+    detectError,
     detect,
     setActive,
     set,

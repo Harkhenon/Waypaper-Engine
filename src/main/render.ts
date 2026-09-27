@@ -73,11 +73,22 @@ export async function detectBackends(): Promise<DetectResult> {
       if (gnome) {
         // Auto-réparation : le schéma doit exister pour piloter l'extension,
         // même si l'extension elle-même a été installée hors de l'app.
-        await ensureUserSchema()
+        try {
+          await ensureUserSchema()
+        } catch (err) {
+          console.error(`[render:detect] ensureUserSchema a échoué : ${err}`)
+        }
       }
-      const available =
-        gnome && (await toolAvailable('gnome-extensions')) && (await getExtensionStatus()).enabled
-      backends.push({ id: backend.id, available })
+      let extensionEnabled = false
+      try {
+        extensionEnabled =
+          gnome && (await toolAvailable('gnome-extensions'))
+            ? (await getExtensionStatus()).enabled
+            : false
+      } catch (err) {
+        console.error(`[render:detect] statut extension illisible : ${err}`)
+      }
+      backends.push({ id: backend.id, available: extensionEnabled })
       continue
     }
     if (backend.id === 'gnome-static') {
@@ -94,7 +105,7 @@ export async function detectBackends(): Promise<DetectResult> {
     backends.push({ id: backend.id, available })
   }
 
-  const config = await readConfig()
+  const config = await readConfig().catch(() => ({ activeBackend: null }) as WorkshopConfig)
   return { sessionType, desktop, backends, active: config.activeBackend ?? null }
 }
 
