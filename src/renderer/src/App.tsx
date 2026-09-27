@@ -46,10 +46,7 @@ export default function App() {
   return (
     <Stack gap={0} h="100%">
       <TitleBar />
-      <AppShell
-        navbar={{ width: 220, breakpoint: 'sm' }}
-        padding="md"
-      >
+      <AppShell navbar={{ width: 220, breakpoint: 'sm' }} padding="md">
         <AppShell.Navbar>
           <AppNavbar section={section} onSectionChange={setSection} />
         </AppShell.Navbar>
@@ -91,6 +88,30 @@ export default function App() {
                     } else {
                       notifications.show({
                         title: 'Échec de l\u2019installation',
+                        message: result.error ?? 'Erreur inconnue.',
+                        color: 'red',
+                        autoClose: 6000
+                      })
+                    }
+                  })()
+                }}
+                gnomeExtensionStatus={render.extension}
+                gnomeExtensionInstalling={render.installingExtension}
+                onInstallGnomeExtension={() => {
+                  void (async () => {
+                    const result = await render.installExtension()
+                    if (result.ok) {
+                      notifications.show({
+                        title: 'Extension installée',
+                        message:
+                          "L'extension GNOME Shell Waypaper Engine est active. Relancez la détection des backends.",
+                        color: 'teal',
+                        autoClose: 5000
+                      })
+                      await render.detect()
+                    } else {
+                      notifications.show({
+                        title: "Échec de l'installation",
                         message: result.error ?? 'Erreur inconnue.',
                         color: 'red',
                         autoClose: 6000

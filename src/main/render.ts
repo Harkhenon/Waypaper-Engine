@@ -15,6 +15,7 @@ import {
   resolvePreview,
   type WorkshopConfig
 } from './workshop'
+import { getExtensionStatus, setExtensionVideoPath } from './gnomeExtension'
 
 export interface BackendStatus {
   id: string
@@ -41,7 +42,12 @@ function detectDesktop(): DetectResult['desktop'] {
   const joined = desktops.join(':').toLowerCase()
   if (joined.includes('gnome')) return 'gnome'
   if (joined.includes('kde') || joined.includes('plasma')) return 'kde'
-  if (joined.includes('hyprland') || joined.includes('sway') || joined.includes('niri') || joined.includes('wlroots')) {
+  if (
+    joined.includes('hyprland') ||
+    joined.includes('sway') ||
+    joined.includes('niri') ||
+    joined.includes('wlroots')
+  ) {
     return 'wlroots'
   }
   if (!isWaylandSession()) return 'x11'
@@ -62,11 +68,18 @@ export async function detectBackends(): Promise<DetectResult> {
   const backends: BackendStatus[] = []
 
   for (const backend of RENDER_BACKENDS) {
-    if (backend.id === 'gnome-static') {
+    if (backend.id === 'gnome-video') {
       const available =
         desktop === 'gnome' &&
         (await toolAvailable('gsettings')) &&
-        (await toolAvailable('dconf'))
+        (await toolAvailable('gnome-extensions')) &&
+        (await getExtensionStatus()).enabled
+      backends.push({ id: backend.id, available })
+      continue
+    }
+    if (backend.id === 'gnome-static') {
+      const available =
+        desktop === 'gnome' && (await toolAvailable('gsettings')) && (await toolAvailable('dconf'))
       backends.push({ id: backend.id, available })
       continue
     }
@@ -99,6 +112,13 @@ export async function stopWallpaper(): Promise<void> {
     runningProcess.kill('SIGTERM')
     runningProcess = null
   }
+  if (process.platform === 'linux') {
+    try {
+      await setExtensionVideoPath(null)
+    } catch {
+      // gsettings absent ou schéma non installé : rien à arrêter
+    }
+  }
 }
 
 export interface InstallResult {
@@ -112,15 +132,23 @@ export async function installBackendTool(backendId: string): Promise<InstallResu
     return { ok: false, error: "Ce backend n'a pas de commande d'installation automatique." }
   }
   return new Promise<InstallResult>((resolve) => {
-    const child = spawn('pkexec', ['sh', '-c', backend.installCommand!], { stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn('pkexec', ['sh', '-c', backend.installCommand!], {
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
     let stderr = ''
-    child.on('error', (err) => resolve({ ok: false, error: `Échec du lancement de pkexec : ${err.message}` }))
+    child.on('error', (err) =>
+      resolve({ ok: false, error: `Échec du lancement de pkexec : ${err.message}` })
+    )
     child.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString()
     })
     child.on('close', (code) => {
       if (code === 0) resolve({ ok: true })
-      else resolve({ ok: false, error: `Installation échouée (code ${code}) : ${stderr.slice(0, 300)}` })
+      else
+        resolve({
+          ok: false,
+          error: `Installation échouée (code ${code}) : ${stderr.slice(0, 300)}`
+        })
     })
   })
 }
@@ -131,8 +159,7 @@ export async function findVideoFile(folder: string): Promise<string | null> {
     const entries = await fs.readdir(folder, { withFileTypes: true })
     const video = entries.find(
       (entry) =>
-        entry.isFile() &&
-        VIDEO_EXTENSIONS.some((ext) => entry.name.toLowerCase().endsWith(ext))
+        entry.isFile() && VIDEO_EXTENSIONS.some((ext) => entry.name.toLowerCase().endsWith(ext))
     )
     if (video) return join(folder, video.name)
   } catch {
@@ -141,7 +168,10 @@ export async function findVideoFile(folder: string): Promise<string | null> {
   return null
 }
 
-function run(cmd: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+function run(
+  cmd: string,
+  args: string[]
+): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     const child = spawn(cmd, args)
     let stdout = ''
@@ -181,9 +211,12 @@ async function tryPortal(uri: string): Promise<boolean> {
   const result = await run('gdbus', [
     'call',
     '--session',
-    '--dest', 'org.freedesktop.portal.Desktop',
-    '--object-path', '/org/freedesktop/portal/desktop',
-    '--method', 'org.freedesktop.portal.Wallpaper.SetWallpaperURI',
+    '--dest',
+    'org.freedesktop.portal.Desktop',
+    '--object-path',
+    '/org/freedesktop/portal/desktop',
+    '--method',
+    'org.freedesktop.portal.Wallpaper.SetWallpaperURI',
     '',
     'waypaper-engine',
     '',
@@ -246,6 +279,15 @@ export async function setWallpaper(payload: SetWallpaperPayload): Promise<SetWal
   }
 
   await stopWallpaper()
+
+  if (active.id === 'gnome-video') {
+    const videoFile = await findVideoFile(payload.folder)
+    if (!videoFile) {
+      return { ok: false, error: 'Aucun fichier vidéo trouvé dans le dossier du wallpaper.' }
+    }
+    await setExtensionVideoPath(videoFile)
+    return { ok: true }
+  }
 
   if (active.id === 'gnome-static') {
     const { project, pkgPath } = await readProjectMetadata(payload.folder)

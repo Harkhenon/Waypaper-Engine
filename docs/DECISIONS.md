@@ -119,7 +119,6 @@ bitmap presenter. Sans impact produit : le rendu des wallpapers reste
 délégué aux backends d'affichage (ADR-004/006), l'UI n'est pas le chemin
 de rendu.
 
-
 ## ADR-010 — Fenêtre frameless (frame: false)
 
 **Décision** : la fenêtre principale est créée sans frame natif
@@ -143,3 +142,33 @@ avant `app.whenReady()`.
 **Motif** : Ubuntu + session GNOME : l'init GTK4 d'Electron loggue
 `Schema org.gnome.desktop.interface does not have key font-antialiasing`.
 Forcer GTK3 évite ce chemin et le rendu des polices reste correct.
+
+## ADR-012 — Vidéo de fond GNOME via extension Shell dédiée
+
+**Décision** : le rendu vidéo sous GNOME (Wayland natif et X11) est confié
+à une extension GNOME Shell embarquée dans le dépôt
+(`gnome-shell-extension/`), adaptée du pattern de Hanabi
+(jeffshee/gnome-ext-hanabi, GPL-3.0-or-later, avec attribution) :
+
+1. un processus renderer GJS/GTK4 (une fenêtre plein écran par moniteur,
+   paintable partagé, `gtk4paintablesink`, repli `Gtk.MediaFile`) est lancé
+   par l'extension via `Meta.WaylandClient` ;
+2. l'extension injecte un acteur dans chaque acteur de fond du shell
+   (override de `BackgroundManager._createBackgroundActor`) qui fait un
+   `Clutter.Clone` de la fenêtre du renderer de son écran ;
+3. l'application pilote l'ensemble par le schéma gsettings
+   `com.harkhenon.waypaper` (clé `video-path`, vide = arrêt) — aucun
+   canal IPC direct vers le shell, ce qui garde le process séparé du
+   même père que ADR-006 (processus externes pilotés par commandes).
+
+L'installation (copie vers `~/.local/share/gnome-shell/extensions/`,
+`glib-compile-schemas`, `gnome-extensions enable`) est automatisée depuis
+les Paramêtes (bouton « Installer l'extension ») — `src/main/gnomeExtension.ts`.
+
+**Motif** : GNOME ne permet pas à un processus tiers de dessiner sous les
+icônes du bureau (pas de couche équivalente à la fenêtre racine X11, et
+l'API `Meta.Background` est réservée au shell). Hanabi démontre que ce
+pattern fonctionne sur GNOME 45–50, y compris NVIDIA/Wayland, et c'est la
+seule approche qui couvre le lock screen et l'aperçu des espaces de travail.
+Le pilotage par gsettings évite toute API externe (ADR-008) et rend
+l'extension autonome si l'app Electron n'est pas lancée.

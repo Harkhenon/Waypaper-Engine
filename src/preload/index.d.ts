@@ -33,7 +33,16 @@ export interface RenderDetectResult {
   active: string | null
 }
 
+export interface GnomeExtensionStatus {
+  installed: boolean
+  enabled: boolean
+  version: number | null
+  error?: string
+}
+
 export interface RenderApi {
+  extensionStatus: () => Promise<GnomeExtensionStatus>
+  installExtension: () => Promise<{ ok: boolean; error?: string }>
   detect: () => Promise<RenderDetectResult>
   setActive: (backendId: string | null) => Promise<void>
   set: (payload: SetWallpaperPayload) => Promise<SetWallpaperResult>

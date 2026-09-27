@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { ActionIcon, Alert, Anchor, Button, Group, Loader, Radio, Stack, Text } from '@mantine/core'
 import { IconExternalLink, IconRefreshDot } from '@tabler/icons-react'
 import { RENDER_BACKENDS } from '../../../../shared/render'
+import GnomeExtensionSection from './GnomeExtensionSection'
+import type { GnomeExtensionStatus } from '../../../../preload/index'
 import type { RenderState } from '../../hooks/useRender'
 
 interface RenderBackendSectionProps {
@@ -10,6 +12,9 @@ interface RenderBackendSectionProps {
   onDetect: () => void
   onSelect: (backendId: string | null) => void
   onInstall: (backendId: string) => void
+  gnomeExtensionStatus: GnomeExtensionStatus | null
+  gnomeExtensionInstalling: boolean
+  onInstallGnomeExtension: () => void
 }
 
 const DESKTOP_LABELS: Record<string, string> = {
@@ -25,7 +30,10 @@ export function RenderBackendSection({
   detecting,
   onDetect,
   onSelect,
-  onInstall
+  onInstall,
+  gnomeExtensionStatus,
+  gnomeExtensionInstalling,
+  onInstallGnomeExtension
 }: RenderBackendSectionProps) {
   const [installing, setInstalling] = useState<string | null>(null)
 
@@ -113,6 +121,13 @@ export function RenderBackendSection({
         Session {state.sessionType}, bureau {DESKTOP_LABELS[state.desktop]}. Le backend actif est
         utilisé pour le rendu des wallpapers.
       </Text>
+      {state.desktop === 'gnome' && (
+        <GnomeExtensionSection
+          status={gnomeExtensionStatus}
+          installing={gnomeExtensionInstalling}
+          onInstall={onInstallGnomeExtension}
+        />
+      )}
     </Stack>
   )
 }

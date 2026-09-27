@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="com.harkhenon.waypaper" path="/com/harkhenon/waypaper/">
+    <key name="video-path" type="s">
+      <default>''</default>
+      <summary>Chemin de la vidéo</summary>
+      <description>Vidéo jouée en fond d'écran. Vide = rendu arrêté.</description>
+    </key>
+    <key name="paused" type="b">
+      <default>false</default>
+      <summary>Lecture en pause</summary>
+      <description>Suspend la lecture de la vidéo.</description>
+    </key>
+    <key name="mute" type="b">
+      <default>true</default>
+      <summary>Couper le son</summary>
+      <description>Coupe le son de la vidéo par défaut.</description>
+    </key>
+  </schema>
+</schemalist>

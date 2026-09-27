@@ -2,6 +2,7 @@ import { Divider, Stack, Title } from '@mantine/core'
 import WorkshopFolderSection from './WorkshopFolderSection'
 import RenderBackendSection from './RenderBackendSection'
 import type { ScannedWorkshopItem } from '../../hooks/useWorkshop'
+import type { GnomeExtensionStatus } from '../../../../preload/index'
 import type { RenderState } from '../../hooks/useRender'
 
 interface SettingsViewProps {
@@ -19,6 +20,9 @@ interface SettingsViewProps {
   onDetectRender: () => void
   onSelectRenderBackend: (backendId: string | null) => void
   onInstallRenderBackend: (backendId: string) => void
+  gnomeExtensionStatus: GnomeExtensionStatus | null
+  gnomeExtensionInstalling: boolean
+  onInstallGnomeExtension: () => void
 }
 
 export function SettingsView({
@@ -35,7 +39,10 @@ export function SettingsView({
   renderDetecting,
   onDetectRender,
   onSelectRenderBackend,
-  onInstallRenderBackend
+  onInstallRenderBackend,
+  gnomeExtensionStatus,
+  gnomeExtensionInstalling,
+  onInstallGnomeExtension
 }: SettingsViewProps) {
   return (
     <Stack gap="md" maw={560}>
@@ -58,6 +65,9 @@ export function SettingsView({
         onDetect={onDetectRender}
         onSelect={onSelectRenderBackend}
         onInstall={onInstallRenderBackend}
+        gnomeExtensionStatus={gnomeExtensionStatus}
+        gnomeExtensionInstalling={gnomeExtensionInstalling}
+        onInstallGnomeExtension={onInstallGnomeExtension}
       />
     </Stack>
   )

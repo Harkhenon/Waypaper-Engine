@@ -15,7 +15,18 @@ export const RENDER_BACKENDS: RenderBackendDef[] = [
     label: 'GNOME — fond statique',
     tool: 'gsettings',
     sessionType: 'any',
-    description: 'Applique l\'aperçu du wallpaper comme fond d\'écran GNOME (image fixe, rien à installer)',
+    description:
+      "Applique l'aperçu du wallpaper comme fond d'écran GNOME (image fixe, rien à installer)",
+    installCommand: null,
+    installLabel: null,
+    instructionsUrl: null
+  },
+  {
+    id: 'gnome-video',
+    label: 'GNOME — vidéo animée',
+    tool: 'gsettings',
+    sessionType: 'any',
+    description: "Vidéo de fond d'écran via l'extension GNOME Shell de Waypaper Engine",
     installCommand: null,
     installLabel: null,
     instructionsUrl: null

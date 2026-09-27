@@ -38,7 +38,18 @@ const windowApi = {
   }
 }
 
+export interface GnomeExtensionStatus {
+  installed: boolean
+  enabled: boolean
+  version: number | null
+  error?: string
+}
+
 const renderApi = {
+  extensionStatus: (): Promise<GnomeExtensionStatus> =>
+    ipcRenderer.invoke('render:extension-status'),
+  installExtension: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('render:install-extension'),
   detect: (): Promise<RenderDetectResult> => ipcRenderer.invoke('render:detect'),
   setActive: (backendId: string | null): Promise<void> =>
     ipcRenderer.invoke('render:set-active', backendId),
@@ -56,8 +67,7 @@ export interface DetectedWorkshopFolder {
 }
 
 const workshopApi = {
-  getFolder: (): Promise<{ folder: string | null }> =>
-    ipcRenderer.invoke('workshop:get-folder'),
+  getFolder: (): Promise<{ folder: string | null }> => ipcRenderer.invoke('workshop:get-folder'),
   setFolder: (folder: string | null): Promise<string | null> =>
     ipcRenderer.invoke('workshop:set-folder', folder),
   pickFolder: (): Promise<string | null> => ipcRenderer.invoke('workshop:pick-folder'),

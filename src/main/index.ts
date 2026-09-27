@@ -1,6 +1,13 @@
 import { app, shell, BrowserWindow, dialog, ipcMain, protocol, net } from 'electron'
 import { detectWorkshopFolders, readConfig, scanWorkshopFolder, writeConfig } from './workshop'
-import { detectBackends, installBackendTool, setActiveBackend, setWallpaper, stopWallpaper } from './render'
+import {
+  detectBackends,
+  installBackendTool,
+  setActiveBackend,
+  setWallpaper,
+  stopWallpaper
+} from './render'
+import { getExtensionStatus, installExtension } from './gnomeExtension'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import type { SetWallpaperPayload } from '../shared/render'
@@ -44,7 +51,7 @@ ipcMain.handle('workshop:set-folder', async (_event, folder: string | null) => {
 
 ipcMain.handle('workshop:pick-folder', async () => {
   const result = await dialog.showOpenDialog({
-    title: "Choisir le dossier de contenu Wallpaper Engine (431960)",
+    title: 'Choisir le dossier de contenu Wallpaper Engine (431960)',
     properties: ['openDirectory']
   })
   return result.canceled ? null : result.filePaths[0]
@@ -99,10 +106,14 @@ function createWindow(): void {
   })
 
   ipcMain.handle('render:detect', () => detectBackends())
-  ipcMain.handle('render:set-active', (_event, backendId: string | null) => setActiveBackend(backendId))
+  ipcMain.handle('render:set-active', (_event, backendId: string | null) =>
+    setActiveBackend(backendId)
+  )
   ipcMain.handle('render:set', (_event, payload: SetWallpaperPayload) => setWallpaper(payload))
   ipcMain.handle('render:stop', () => stopWallpaper())
   ipcMain.handle('render:install', (_event, backendId: string) => installBackendTool(backendId))
+  ipcMain.handle('render:extension-status', () => getExtensionStatus())
+  ipcMain.handle('render:install-extension', () => installExtension())
 
   ipcMain.on('window:minimize', () => win.minimize())
   ipcMain.on('window:maximize', () => {
@@ -128,7 +139,10 @@ function createWindow(): void {
     const isCmdOptI =
       process.platform === 'darwin' && input.meta && input.alt && input.key.toLowerCase() === 'i'
     const isCtrlShiftI =
-      process.platform !== 'darwin' && input.control && input.shift && input.key.toLowerCase() === 'i'
+      process.platform !== 'darwin' &&
+      input.control &&
+      input.shift &&
+      input.key.toLowerCase() === 'i'
     if (isF12 || isCmdOptI || isCtrlShiftI) {
       if (win.webContents.isDevToolsOpened()) {
         win.webContents.closeDevTools()
@@ -150,7 +164,13 @@ const MEDIA_SCHEME = 'waypaper-media'
 protocol.registerSchemesAsPrivileged([
   {
     scheme: MEDIA_SCHEME,
-    privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true, stream: true }
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: true,
+      stream: true
+    }
   }
 ])
 

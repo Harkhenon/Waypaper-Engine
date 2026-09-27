@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import prettier from 'eslint-config-prettier'
 
 export default tseslint.config(
-  { ignores: ['out', 'dist', 'release', 'node_modules'] },
+  { ignores: ['out', 'dist', 'release', 'node_modules', 'gnome-shell-extension'] },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {

@@ -1,11 +1,32 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { RenderDetectResult } from '../../../preload/index'
+import type { GnomeExtensionStatus, RenderDetectResult } from '../../../preload/index'
 
 export type RenderState = RenderDetectResult
 
 export function useRender() {
   const [state, setState] = useState<RenderState | null>(null)
   const [detecting, setDetecting] = useState(false)
+  const [extension, setExtension] = useState<GnomeExtensionStatus | null>(null)
+  const [installingExtension, setInstallingExtension] = useState(false)
+
+  const fetchExtension = useCallback(async (): Promise<GnomeExtensionStatus | null> => {
+    try {
+      return await window.api.render.extensionStatus()
+    } catch {
+      return null
+    }
+  }, [])
+
+  const installExtension = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    setInstallingExtension(true)
+    try {
+      const result = await window.api.render.installExtension()
+      setExtension(await fetchExtension())
+      return result
+    } finally {
+      setInstallingExtension(false)
+    }
+  }, [fetchExtension])
 
   const fetchState = useCallback(async (): Promise<RenderState> => {
     return window.api.render.detect()
@@ -32,6 +53,18 @@ export function useRender() {
     }
   }, [fetchState])
 
+  useEffect(() => {
+    let cancelled = false
+    const run = async (): Promise<void> => {
+      const result = await fetchExtension()
+      if (!cancelled) setExtension(result)
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [fetchExtension])
+
   const setActive = useCallback(async (backendId: string | null): Promise<void> => {
     await window.api.render.setActive(backendId)
     setState((prev) =>
@@ -42,8 +75,15 @@ export function useRender() {
   }, [])
 
   const set = useCallback(
-    async (payload: { wallpaperId: string; folder: string }): Promise<{ ok: boolean; error?: string }> => {
-      return window.api.render.set({ wallpaperId: payload.wallpaperId, folder: payload.folder, file: '' })
+    async (payload: {
+      wallpaperId: string
+      folder: string
+    }): Promise<{ ok: boolean; error?: string }> => {
+      return window.api.render.set({
+        wallpaperId: payload.wallpaperId,
+        folder: payload.folder,
+        file: ''
+      })
     },
     []
   )
@@ -63,5 +103,16 @@ export function useRender() {
     [fetchState]
   )
 
-  return { state, detecting, detect, setActive, set, stop, install }
+  return {
+    state,
+    detecting,
+    detect,
+    setActive,
+    set,
+    stop,
+    install,
+    extension,
+    installingExtension,
+    installExtension
+  }
 }
