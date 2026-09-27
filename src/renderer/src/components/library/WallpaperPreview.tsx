@@ -1,4 +1,4 @@
-import { Box, Center } from '@mantine/core'
+import { Box, Center, Image } from '@mantine/core'
 import {
   IconVideo,
   IconWorld,
@@ -20,6 +20,14 @@ const PREVIEW_ICONS = {
 export function WallpaperPreview({ wallpaper }: { wallpaper: Wallpaper }) {
   const visual = TYPE_VISUAL_META[wallpaper.type]
   const Icon = PREVIEW_ICONS[visual.icon]
+
+  if (wallpaper.preview) {
+    return (
+      <Box h={140} style={{ overflow: 'hidden' }}>
+        <Image h={140} w="100%" fit="cover" src={wallpaper.preview} />
+      </Box>
+    )
+  }
 
   return (
     <Box

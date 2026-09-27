@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, dialog, ipcMain, protocol, net } from 'electron'
 import { detectWorkshopFolders, readConfig, scanWorkshopFolder, writeConfig } from './workshop'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
@@ -124,6 +124,20 @@ function createWindow(): void {
   }
 }
 
+const MEDIA_SCHEME = 'waypaper-media'
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: MEDIA_SCHEME, privileges: { standard: true, supportFetchAPI: true } }
+])
+
+function registerMediaProtocol(): void {
+  protocol.handle(MEDIA_SCHEME, (request) => {
+    const raw = new URL(request.url).pathname.replace(/^\//, '')
+    const filePath = decodeURIComponent(raw)
+    return net.fetch(`file://${filePath}`)
+  })
+}
+
 configureDisplayBackend()
 
 if (process.env['WAYPAPER_DISABLE_GPU'] === '1') {
@@ -140,6 +154,7 @@ app.on('render-process-gone', (_event, _wc, details) => {
 })
 
 void app.whenReady().then(() => {
+  registerMediaProtocol()
   createWindow()
 
   app.on('activate', () => {

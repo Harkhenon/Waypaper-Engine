@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { promises as fs } from 'fs'
 import { join, resolve } from 'path'
 import { DEFAULT_WORKSHOP_FOLDERS, WORKSHOP_APP_ID } from '../shared/workshop'
-import { findPkgFile, readProjectFromPkg } from './pkg'
+import { extractPreviewFromPkg, findPkgFile, readProjectFromPkg } from './pkg'
 
 interface WorkshopConfig {
   folder: string | null
@@ -61,17 +61,48 @@ async function readProjectJson(itemFolder: string): Promise<Record<string, unkno
   }
 }
 
-async function readProjectMetadata(itemFolder: string): Promise<Record<string, unknown> | null> {
+interface ProjectMetadata {
+  project: Record<string, unknown> | null
+  pkgPath: string | null
+}
+
+async function readProjectMetadata(itemFolder: string): Promise<ProjectMetadata> {
   const plain = await readProjectJson(itemFolder)
-  if (plain) return plain
+  if (plain) return { project: plain, pkgPath: null }
 
   try {
     const pkgPath = await findPkgFile(itemFolder)
-    if (pkgPath) return await readProjectFromPkg(pkgPath)
+    if (pkgPath) {
+      const project = await readProjectFromPkg(pkgPath)
+      return { project, pkgPath }
+    }
   } catch {
     // pack illisible — on retombe sur les métadonnées minimales
   }
-  return null
+  return { project: null, pkgPath: null }
+}
+
+async function resolvePreview(
+  itemFolder: string,
+  itemId: string,
+  project: Record<string, unknown> | null,
+  projectSourcePkg: string | null
+): Promise<string | null> {
+  if (project && typeof project.preview === 'string' && project.preview) {
+    const previewPath = join(itemFolder, project.preview)
+    if (await fileExists(previewPath)) return previewPath
+  }
+
+  if (!projectSourcePkg) return null
+  try {
+    return await extractPreviewFromPkg(
+      projectSourcePkg,
+      join(app.getPath('userData'), 'preview-cache'),
+      itemId
+    )
+  } catch {
+    return null
+  }
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -91,11 +122,8 @@ export async function scanWorkshopFolder(folder: string): Promise<ScannedItem[]>
   for (const entry of entries) {
     if (!entry.isDirectory()) continue
     const itemFolder = join(resolved, entry.name)
-    const project = await readProjectMetadata(itemFolder)
-    const preview =
-      project && typeof project.preview === 'string' && project.preview
-        ? join(itemFolder, project.preview)
-        : null
+    const { project, pkgPath } = await readProjectMetadata(itemFolder)
+    const preview = await resolvePreview(itemFolder, entry.name, project, pkgPath)
     items.push({
       id: entry.name,
       folder: itemFolder,
@@ -107,7 +135,7 @@ export async function scanWorkshopFolder(folder: string): Promise<ScannedItem[]>
         project && typeof project.type === 'string' && project.type
           ? project.type
           : 'unknown',
-      preview: preview && (await fileExists(preview)) ? preview : null,
+      preview,
       sizeMb: await folderSizeMb(itemFolder)
     })
   }

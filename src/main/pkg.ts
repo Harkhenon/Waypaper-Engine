@@ -86,3 +86,26 @@ export async function readProjectFromPkg(
   const raw = readEntry(buffer, contents, entry).toString('utf-8')
   return JSON.parse(raw) as Record<string, unknown>
 }
+
+const PREVIEW_ENTRY_PATTERN = /(?:^|\/)preview\.(jpe?g|png|gif|webp)$/i
+
+export async function extractPreviewFromPkg(
+  pkgPath: string,
+  cacheDir: string,
+  itemId: string
+): Promise<string | null> {
+  const buffer = await fs.readFile(pkgPath)
+  const contents = parsePkg(buffer)
+  const entry = contents.entries.find((candidate) =>
+    PREVIEW_ENTRY_PATTERN.test(candidate.fullPath)
+  )
+  if (!entry) return null
+
+  const match = entry.fullPath.match(PREVIEW_ENTRY_PATTERN)
+  const extension = match ? match[1]!.toLowerCase() : 'jpg'
+  const outputPath = join(cacheDir, `preview-${itemId}.${extension}`)
+
+  await fs.mkdir(cacheDir, { recursive: true })
+  await fs.writeFile(outputPath, readEntry(buffer, contents, entry))
+  return outputPath
+}

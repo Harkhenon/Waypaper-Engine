@@ -17,6 +17,11 @@ import type { Wallpaper, WallpaperType } from '../data/wallpaper'
 
 const VALID_TYPES: WallpaperType[] = ['video', 'web', 'scene', 'application', 'playlist']
 
+export function toMediaUrl(preview: string | null): string {
+  if (!preview) return ''
+  return `waypaper-media://local/${encodeURIComponent(preview)}`
+}
+
 export function toWallpaper(item: ScannedWorkshopItem): Wallpaper {
   const type = VALID_TYPES.includes(item.type as WallpaperType)
     ? (item.type as WallpaperType)
@@ -28,7 +33,7 @@ export function toWallpaper(item: ScannedWorkshopItem): Wallpaper {
     title: item.title,
     author: '—',
     description: '',
-    preview: item.preview ?? '',
+    preview: toMediaUrl(item.preview),
     tags: [] as string[],
     sizeMb: item.sizeMb,
     updatedAt: '',
