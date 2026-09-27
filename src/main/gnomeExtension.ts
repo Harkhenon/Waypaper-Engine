@@ -348,12 +348,46 @@ export interface ExtensionMonitor {
   scale: number
 }
 
+// gsettings get renvoie une chaîne GVariant entre quotes avec un
+// échappement propre à GVariant (\" pour un guillemet, \\ pour un antislash,
+// \n pour un saut de ligne…) ; un simple slice des quotes externes corromprait
+// le JSON dès qu'un nom d'écran contient un guillemet (ex. « AOC 32\" »).
+export function parseGVariantString(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed.startsWith("'") || !trimmed.endsWith("'")) return trimmed
+  const body = trimmed.slice(1, -1)
+  let out = ''
+  for (let i = 0; i < body.length; i++) {
+    const char = body[i]
+    if (char !== '\\' || i + 1 >= body.length) {
+      out += char
+      continue
+    }
+    const next = body[++i]
+    if (next === "'") out += "'"
+    else if (next === '\\') out += '\\'
+    else if (next === 'n') out += '\n'
+    else if (next === 't') out += '\t'
+    else if (next === 'r') out += '\r'
+    else if (next === 'u') {
+      const hex = body.slice(i + 1, i + 5)
+      if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+        out += String.fromCharCode(parseInt(hex, 16))
+        i += 4
+      } else {
+        out += next
+      }
+    } else out += next
+  }
+  return out
+}
+
 export async function getExtensionMonitors(): Promise<ExtensionMonitor[]> {
   const result = await run('gsettings', ['get', EXTENSION_SCHEMA, 'monitors-json'])
   if (result.code !== 0) return []
   const raw = result.stdout.trim()
   if (!raw || raw === "''") return []
-  const json = raw.startsWith("'") && raw.endsWith("'") ? raw.slice(1, -1) : raw
+  const json = parseGVariantString(raw)
   try {
     const parsed = JSON.parse(json) as ExtensionMonitor[]
     return Array.isArray(parsed) ? parsed : []
