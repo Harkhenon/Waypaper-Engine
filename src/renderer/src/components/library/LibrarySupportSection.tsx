@@ -15,10 +15,10 @@ interface LibrarySupportSectionProps {
   onSet: (wallpaper: Wallpaper, monitorIndex?: number | null) => void
 }
 
-const SECTIONS: { level: SupportLevel; label: string; color: string; defaultOpen: boolean }[] = [
-  { level: 'supported', label: 'Compatibles', color: 'teal', defaultOpen: true },
-  { level: 'partial', label: 'Partiellement supportés', color: 'yellow', defaultOpen: true },
-  { level: 'unsupported', label: 'Non supportés', color: 'red', defaultOpen: false }
+const SECTIONS: { level: SupportLevel; label: string; color: string }[] = [
+  { level: 'supported', label: 'Compatibles', color: 'teal' },
+  { level: 'partial', label: 'Partiellement supportés', color: 'yellow' },
+  { level: 'unsupported', label: 'Non supportés', color: 'red' }
 ]
 
 const typesForLevel = (level: SupportLevel) =>
@@ -39,11 +39,7 @@ const sectionExplanation = (level: SupportLevel) => (
 
 export function LibrarySupportSection({ wallpapers, monitors, onSet }: LibrarySupportSectionProps) {
   return (
-    <Accordion
-      multiple
-      variant="separated"
-      defaultValue={SECTIONS.filter((s) => s.defaultOpen).map((s) => s.level)}
-    >
+    <Accordion multiple variant="separated">
       {SECTIONS.map((section) => {
         const cards = wallpapers.filter(
           (w) => WALLPAPER_TYPE_META[w.type].support === section.level
@@ -51,8 +47,10 @@ export function LibrarySupportSection({ wallpapers, monitors, onSet }: LibrarySu
         return (
           <Accordion.Item key={section.level} value={section.level}>
             <Accordion.Control>
-              <Group gap="sm" wrap="nowrap">
-                <Text fw={600}>{section.label}</Text>
+              <Group gap="sm" wrap="nowrap" h={26}>
+                <Text fw={600} size="sm">
+                  {section.label}
+                </Text>
                 <Badge size="sm" variant="light" color={section.color}>
                   {cards.length}
                 </Badge>
@@ -64,8 +62,14 @@ export function LibrarySupportSection({ wallpapers, monitors, onSet }: LibrarySu
                     position="top"
                     withinPortal
                   >
-                    <Badge size="xs" variant="light" color={section.color} circle>
-                      <IconInfoCircle size={11} stroke={1.5} />
+                    <Badge
+                      size="sm"
+                      variant="light"
+                      color={section.color}
+                      circle
+                      styles={{ root: { display: 'inline-flex', alignItems: 'center' } }}
+                    >
+                      <IconInfoCircle size={12} stroke={1.5} style={{ display: 'block' }} />
                     </Badge>
                   </Tooltip>
                 )}

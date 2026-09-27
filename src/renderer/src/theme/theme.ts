@@ -1,4 +1,9 @@
-import { createTheme, DEFAULT_THEME, mergeMantineTheme, type MantineColorsTuple } from '@mantine/core'
+import {
+  createTheme,
+  DEFAULT_THEME,
+  mergeMantineTheme,
+  type MantineColorsTuple
+} from '@mantine/core'
 
 const anthracite: MantineColorsTuple = [
   '#e8eaec',
@@ -43,7 +48,7 @@ export const theme = createTheme({
         defaultProps: { radius: 'md', bg: 'anthracite.7' }
       },
       Tooltip: {
-        defaultProps: { bg: 'anthracite.9', radius: 'sm' }
+        defaultProps: { bg: 'anthracite.9', c: 'anthracite.0', radius: 'sm' }
       }
     }
   })
