@@ -25,6 +25,7 @@ export function MonitorsView({ monitors, loading, onRefresh }: MonitorsViewProps
       return monitors.map((m) => ({
         id: `monitor-${m.index}`,
         name: m.name,
+        connector: m.connector,
         width: m.width,
         height: m.height,
         scale: m.scale
@@ -33,6 +34,7 @@ export function MonitorsView({ monitors, loading, onRefresh }: MonitorsViewProps
     return MOCK_MONITORS.map((m) => ({
       id: m.id,
       name: m.name,
+      connector: m.name,
       width: m.width,
       height: m.height,
       scale: m.scale
@@ -75,6 +77,9 @@ export function MonitorsView({ monitors, loading, onRefresh }: MonitorsViewProps
                     </Badge>
                   </Group>
                   <Text size="xs" c="anthracite.3">
+                    {monitor.connector && monitor.connector !== monitor.name
+                      ? `${monitor.connector} · `
+                      : ''}
                     {monitor.width}×{monitor.height}
                     {monitor.scale !== 1 && ` · échelle ${monitor.scale}`}
                   </Text>

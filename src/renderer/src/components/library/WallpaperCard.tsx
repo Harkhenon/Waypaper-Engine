@@ -67,7 +67,13 @@ export function WallpaperCard({ wallpaper, onSet, monitors }: WallpaperCardProps
                 leftSection={<IconDeviceDesktopAnalytics size={14} stroke={1.5} />}
                 onClick={() => handleSetOnMonitor(monitor.index)}
               >
-                {monitor.name} ({monitor.width}×{monitor.height})
+                {monitor.name}
+                {monitor.connector && monitor.connector !== monitor.name && (
+                  <Text size="xs" c="anthracite.3" component="span">
+                    {' '}
+                    · {monitor.connector}
+                  </Text>
+                )}
               </Menu.Item>
             ))}
           </Menu.Dropdown>

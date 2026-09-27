@@ -55,6 +55,7 @@ export interface GnomeExtensionPlaybackState {
 export interface ExtensionMonitorInfo {
   index: number
   name: string
+  connector: string
   x: number
   y: number
   width: number

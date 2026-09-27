@@ -127,9 +127,34 @@ export default class WaypaperExtension extends Extension {
   // afficher des moniteurs réels (la clé est relue par gsettings côté app).
   _publishMonitors() {
     if (!this._settings) return
+    // Noms lisibles via mutter : Meta.LogicalMonitor.get_number() donne le même
+    // index que Main.layoutManager.monitors, et Meta.Monitor expose le libellé
+    // usine et le connecteur (DP-1, HDMI-A-1…).
+    let connectorNames = []
+    try {
+      const monitorManager = global.backend.get_monitor_manager()
+      connectorNames = monitorManager.get_logical_monitors().map((logical) => {
+        const physical = logical.get_monitors()[0]
+        return {
+          index: logical.get_number(),
+          name: physical?.get_display_name() ?? '',
+          connector: physical?.get_connector() ?? ''
+        }
+      })
+    } catch (e) {
+      console.warn(`[waypaper] noms d'écrans indisponibles : ${e}`)
+    }
+    const nameFor = (index, m) => {
+      const entry = connectorNames.find((c) => c.index === index)
+      if (entry?.name && entry.name !== 'Unknown') return entry.name
+      if (entry?.connector) return entry.connector
+      return `${m.width}x${m.height}+${m.x}+${m.y}`
+    }
+    const connectorFor = (index) => connectorNames.find((c) => c.index === index)?.connector ?? ''
     const monitors = Main.layoutManager.monitors.map((m, index) => ({
       index,
-      name: `${m.width}x${m.height}+${m.x}+${m.y}`,
+      name: nameFor(index, m),
+      connector: connectorFor(index),
       x: m.x,
       y: m.y,
       width: m.width,
@@ -199,7 +224,11 @@ export default class WaypaperExtension extends Extension {
       this._subprocess = null
       this._launcher = null
       this._windowManager.setLauncher(null)
-      if (this._enabled && this._settings.get_string('video-path') !== '') {
+      if (
+        this._enabled &&
+        (this._settings.get_string('video-path') !== '' ||
+          this._settings.get_string('video-paths') !== '{}')
+      ) {
         // Anti-crash-loop : après 3 échecs consécutifs, on abandonne plutôt
         // que de relancer GStreamer en boucle (fige la session).
         this._rendererFailures = (this._rendererFailures ?? 0) + 1

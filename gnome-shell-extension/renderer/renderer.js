@@ -78,10 +78,13 @@ const setMonitorVideo = (index, path) => {
   const existing = players.get(index)
   if (existing) {
     if (!path) {
+      // Assignation retirée : on stoppe le player ET on détruit la fenêtre —
+      // sinon le clone du shell afficherait la dernière frame gelée.
       players.delete(index)
       existing.media?.stream_unprepared()
       existing.play?.stop()
       existing.media?.pause()
+      destroyWindow(index)
       return
     }
     if (existing.path === path) return
@@ -93,6 +96,7 @@ const setMonitorVideo = (index, path) => {
     if (!path) return
     const entry = buildPlayer(path)
     players.set(index, entry)
+    if (!windows.has(index)) createWindow(index)
     const picture = buildPicture(entry.paintable)
     attachWidget(index, picture)
   }
@@ -137,13 +141,49 @@ const buildPicture = (paintable) => {
   return picture
 }
 
-// Chaque écran a sa fenêtre ; attachWidget garde le mapping pour remplacer
-// le contenu quand l'assignation change à chaud.
+// Chaque écran a sa fenêtre, créée à la demande (une assignation arrive) et
+// détruite quand elle est retirée. attachWidget garde le mapping pour remplacer
+// le contenu à chaud.
 const windows = new Map()
+let applicationInstance = null
 
 const attachWidget = (index, widget) => {
   const window = windows.get(index)
   if (window) window.set_child(widget)
+}
+
+const monitorGeometry = (index) => {
+  const display = Gdk.Display.get_default()
+  const monitors = display ? [...display.get_monitors()] : []
+  return monitors[index]?.get_geometry() ?? { x: 0, y: 0, width: 640, height: 480 }
+}
+
+const monitorCount = () => {
+  const display = Gdk.Display.get_default()
+  return display ? display.get_monitors().get_n_items() : 0
+}
+
+const createWindow = (index) => {
+  const geometry = monitorGeometry(index)
+  const window = new Gtk.ApplicationWindow({
+    application: applicationInstance,
+    decorated: false,
+    default_width: geometry.width,
+    default_height: geometry.height,
+    title: buildWindowTitle(index, geometry)
+  })
+  window.set_size_request(geometry.width, geometry.height)
+  window.set_resizable(false)
+  windows.set(index, window)
+  window.present()
+  return window
+}
+
+const destroyWindow = (index) => {
+  const window = windows.get(index)
+  if (!window) return
+  windows.delete(index)
+  window.close()
 }
 
 const syncPlaybackState = () => {
@@ -171,9 +211,13 @@ const syncAll = () => {
   for (const [index, path] of Object.entries(byMonitor)) {
     setMonitorVideo(Number(index), path)
   }
-  // Écrans sans assignation : vidéo globale (ou retrait si vide).
-  for (const index of windows.keys()) {
-    if (!(index in byMonitor)) setMonitorVideo(index, globalPath)
+  // Écrans sans assignation : vidéo globale (ou retrait si vide). On couvre
+  // tous les index connus (fenêtres existantes + écrans physiques) pour créer
+  // les fenêtres manquantes quand un chemin global arrive.
+  const indices = new Set([...windows.keys()])
+  for (let i = 0; i < monitorCount(); i++) indices.add(i)
+  for (const index of indices) {
+    if (!(String(index) in byMonitor)) setMonitorVideo(index, globalPath)
   }
 }
 
@@ -181,25 +225,17 @@ const RendererApp = GObject.registerClass(
   { GTypeName: 'WaypaperRenderer' },
   class RendererApp extends Gtk.Application {
     vfunc_activate() {
-      const display = Gdk.Display.get_default()
-      const monitors = display ? [...display.get_monitors()] : []
+      applicationInstance = this
       const { byMonitor, globalPath } = readAssignments()
-      monitors.forEach((gdkMonitor, index) => {
-        const geometry = gdkMonitor.get_geometry()
-        const window = new Gtk.ApplicationWindow({
-          application: this,
-          decorated: false,
-          default_width: geometry.width,
-          default_height: geometry.height,
-          title: buildWindowTitle(index, geometry)
-        })
-        window.set_size_request(geometry.width, geometry.height)
-        window.set_resizable(false)
-        windows.set(index, window)
+      const maxIndex = Math.max(
+        -1,
+        ...Object.keys(byMonitor).map(Number),
+        globalPath || initialVideoPath ? monitorCount() - 1 : -1
+      )
+      for (let index = 0; index <= maxIndex; index++) {
         const path = byMonitor[String(index)] ?? globalPath ?? initialVideoPath
         if (path) setMonitorVideo(index, path)
-        window.present()
-      })
+      }
       settings?.connect('changed', (s, key) => {
         if (key === 'video-path' || key === 'video-paths') {
           syncAll()

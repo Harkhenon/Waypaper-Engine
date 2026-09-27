@@ -340,6 +340,7 @@ export async function setExtensionPlaybackValue(
 export interface ExtensionMonitor {
   index: number
   name: string
+  connector: string
   x: number
   y: number
   width: number

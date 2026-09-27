@@ -83,11 +83,12 @@ export const LiveWallpaper = GObject.registerClass(
       const rendererActors = global
         .get_window_actors()
         .filter((actor) => actor.meta_window.title?.includes(APPLICATION_ID))
-      if (rendererActors.length === 0) return null
+      // Pas de repli sur le premier acteur trouvé : c'est lui qui provoquait la
+      // « duplication » (deux fonds clonant la même fenêtre).
       return (
         rendererActors.find(
           (actor) => actor.meta_window.get_monitor() === this._backgroundActor.monitor
-        ) ?? rendererActors[0]
+        ) ?? null
       )
     }
   }
