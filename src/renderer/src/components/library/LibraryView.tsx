@@ -1,17 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Center, Grid, Loader, Select, Stack, Text, TextInput, Title } from '@mantine/core'
-import { IconSearch } from '@tabler/icons-react'
+import { Center, Grid, Loader, Stack, Text, Title } from '@mantine/core'
 import type { Wallpaper } from '../../data/wallpaper'
 import type { ExtensionMonitorInfo } from '../../../../preload/index'
-import { WALLPAPER_TYPE_META } from '../../data/wallpaper'
 import { toWallpaper, type ScannedWorkshopItem } from '../../hooks/useWorkshop'
-import {
-  SORT_OPTIONS,
-  TYPE_FILTER_OPTIONS,
-  type SortValue,
-  type TypeFilterValue
-} from '../../data/filters'
+import { type SortValue, type TypeFilterValue } from '../../data/filters'
 import WallpaperCard from './WallpaperCard'
+import LibraryFilters from './LibraryFilters'
 
 function applyFilters(
   wallpapers: Wallpaper[],
@@ -29,7 +23,6 @@ function applyFilters(
       w.tags.some((tag) => tag.includes(searchLower))
     return matchesType && matchesSearch
   })
-
   const sorted = [...filtered]
   switch (sort) {
     case 'title':
@@ -58,7 +51,6 @@ export function LibraryView({ items, scanning, onSet, monitors }: LibraryViewPro
   const [sort, setSort] = useState<SortValue>('recent')
 
   const wallpapers = useMemo(() => items.map(toWallpaper), [items])
-
   const filtered = useMemo(
     () => applyFilters(wallpapers, search, typeFilter, sort),
     [wallpapers, search, typeFilter, sort]
@@ -66,58 +58,23 @@ export function LibraryView({ items, scanning, onSet, monitors }: LibraryViewPro
 
   return (
     <Stack gap="md" h="100%">
-      <Grid gap="sm" align="flex-end">
-        <Grid.Col span={6}>
-          <TextInput
-            placeholder="Rechercher par titre, auteur, tag…"
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-            leftSection={<IconSearch size={16} stroke={1.5} />}
-          />
-        </Grid.Col>
-        <Grid.Col span={3}>
-          <Select
-            label="Type"
-            data={TYPE_FILTER_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label
-            }))}
-            value={typeFilter}
-            onChange={(v) => setTypeFilter((v ?? 'all') as TypeFilterValue)}
-            allowDeselect={false}
-          />
-        </Grid.Col>
-        <Grid.Col span={3}>
-          <Select
-            label="Trier par"
-            data={SORT_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label
-            }))}
-            value={sort}
-            onChange={(v) => setSort((v ?? 'recent') as SortValue)}
-            allowDeselect={false}
-          />
-        </Grid.Col>
-      </Grid>
-
+      <LibraryFilters
+        search={search}
+        onSearchChange={setSearch}
+        typeFilter={typeFilter}
+        onTypeFilterChange={setTypeFilter}
+        sort={sort}
+        onSortChange={setSort}
+      />
       <Text size="xs" c="anthracite.3">
         {filtered.length} wallpaper{filtered.length > 1 ? 's' : ''} affiché
         {filtered.length > 1 ? 's' : ''}
-        {filtered.some((w) => WALLPAPER_TYPE_META[w.type].support !== 'supported') && (
-          <Text size="xs" c="anthracite.3" span>
-            {' '}
-            — certains items sont partiellement ou non supportés (badge sur la carte)
-          </Text>
-        )}
       </Text>
-
       {scanning && (
         <Center>
           <Loader color="anthracite.3" />
         </Center>
       )}
-
       {!scanning && filtered.length === 0 && (
         <Center h={300}>
           <Stack align="center" gap="xs">
@@ -132,7 +89,6 @@ export function LibraryView({ items, scanning, onSet, monitors }: LibraryViewPro
           </Stack>
         </Center>
       )}
-
       {!scanning && filtered.length > 0 && (
         <Grid gap="md">
           {filtered.map((wallpaper) => (

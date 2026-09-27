@@ -8,16 +8,7 @@ export const SORT_OPTIONS = [
 
 export type SortValue = (typeof SORT_OPTIONS)[number]['value']
 
-export const TYPE_FILTER_OPTIONS = [
-  { value: 'all', label: 'Tous' },
-  { value: 'video', label: 'Vidéo' },
-  { value: 'web', label: 'Web' },
-  { value: 'scene', label: 'Scène' },
-  { value: 'playlist', label: 'Playlist' },
-  { value: 'application', label: 'Application' }
-] as const
-
-export type TypeFilterValue = (typeof TYPE_FILTER_OPTIONS)[number]['value']
+export type TypeFilterValue = 'all' | WallpaperType
 
 export interface TypeVisualMeta {
   icon: 'video' | 'world' | 'cube' | 'playlist' | 'app'
