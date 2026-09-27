@@ -14,9 +14,9 @@ Identique à celle de Hanabi, éprouvée sur GNOME 45 à 50 :
    fenêtre du renderer correspondant à son écran, avec retry tant que le
    renderer n'est pas mappé.
 3. `renderer/renderer.js` — processus GJS/GTK4 autonome : une fenêtre plein
-   écran par moniteur, un paintable partagé, `gtk4paintablesink` (GStreamer)
-   ou repli `Gtk.MediaFile`. Boucle, pause et changement de fichier à la
-   volée via gsettings.
+   écran par moniteur, lecture via `Gtk.MediaFile` (pipeline GStreamer
+   internalisé par GTK, thread-safe). Boucle, pause et changement de fichier
+   à la volée via gsettings.
 4. `windowManager.js` — garde les fenêtres du renderer minimisées et en bas.
 5. `launcher.js` — spawn en client Wayland du shell (invisible pour les
    autres applications).
@@ -38,9 +38,8 @@ Paramètres (bouton « Installer l'extension »).
 ## Dépendances
 
 - `gjs` (runtime), fourni par GNOME.
-- Rendu optimal : `gtk4paintablesink` (paquet `gstreamer1.0-gtk4` sur
-  Ubuntu, `gnome-shell` expose déjà la typelib).
-- Repli sans GStreamer GTK : `Gtk.MediaFile` (intégré à GTK4).
+- Lecture vidéo : `Gtk.MediaFile` (intégré à GTK4, backend GStreamer natif).
+- Wallpapers web (optionnel) : WebKitGTK 6 (`gir1.2-webkit2-4.1`).
 
 ## Crédits
 

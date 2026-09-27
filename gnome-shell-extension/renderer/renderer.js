@@ -4,18 +4,10 @@
 // Adapté de Hanabi (jeffshee/gnome-ext-hanabi) — GPL-3.0-or-later.
 imports.gi.versions.Gtk = '4.0'
 imports.gi.versions.WebKit = '6.0'
-const { GObject, Gtk, Gio, GLib, Gdk, Gst } = imports.gi
+const { GObject, Gtk, Gio, GLib, Gdk } = imports.gi
 
 const APPLICATION_ID = 'io.github.harkhenon.WaypaperRenderer'
 const SCHEMA_ID = 'com.harkhenon.waypaper'
-
-let GstPlay = null
-try {
-  GstPlay = imports.gi.GstPlay
-} catch (e) {
-  console.warn('GstPlay indisponible, repli sur Gtk.MediaFile')
-}
-const haveGstPlay = GstPlay !== null
 
 let WebKit = null
 try {
@@ -66,9 +58,6 @@ const readAssignments = () => {
   const globalPath = settings ? settings.get_string('video-path') : initialVideoPath
   return { byMonitor, globalPath }
 }
-
-const setPlay = (player) => player.play()
-const setPause = (player) => player.pause()
 
 // Titre = contrat avec le WindowManager du shell (pattern Hanabi).
 const buildWindowTitle = (index, geometry) => {
@@ -124,13 +113,12 @@ const stopPlayer = (entry) => {
     }
     return
   }
-  entry.media?.stream_unprepared()
-  entry.play?.stop()
   entry.media?.pause()
+  entry.media?.clear()
 }
 
 // Construit le contenu d'un écran : WebView pour une page web, player
-// vidéo (GstPlay si dispo, sinon Gtk.MediaFile) sinon.
+// vidéo (Gtk.MediaFile) sinon.
 const buildPlayer = (path) => {
   if (isWebPath(path)) return buildWebEntry(path)
   return buildVideoEntry(path)
@@ -154,25 +142,11 @@ const buildVideoEntry = (path) => {
   return entry
 }
 
+// Gtk.MediaFile uniquement : son pipeline GStreamer est piloté par GTK depuis
+// le main thread. L'alternative GstPlay + gtk4paintablesink panique en Rust
+// (« Value accessed from different thread ») au teardown du pipeline, ce qui
+// tuait le renderer à chaque changement de wallpaper à chaud.
 const buildVideoPlayer = (path) => {
-  const file = Gio.File.new_for_path(path)
-  if (haveGstPlay) {
-    let sink = Gst.ElementFactory.make('gtk4paintablesink', 'gtk4paintablesink')
-    if (!sink) sink = Gst.ElementFactory.make('gtksink', 'gtksink')
-    if (sink && !sink.widget && sink.paintable) {
-      const play = GstPlay.Play.new(GstPlay.PlayVideoOverlayVideoRenderer.new_with_sink(null, sink))
-      const adapter = GstPlay.PlaySignalAdapter.new(play)
-      adapter.connect('end-of-stream', (a) => {
-        if (settings ? settings.get_boolean('loop') : true) a.play.seek(0)
-      })
-      adapter.connect('warning', (_a, err) => console.warn(err))
-      adapter.connect('error', (_a, err) => console.error(err))
-      play.set_uri(file.get_uri())
-      play.mute = settings ? settings.get_boolean('mute') : true
-      play.play()
-      return { path, play, adapter, paintable: sink.paintable }
-    }
-  }
   const media = Gtk.MediaFile.new_for_filename(path)
   media.set({ loop: settings ? settings.get_boolean('loop') : true })
   media.muted = settings ? settings.get_boolean('mute') : true
@@ -260,20 +234,21 @@ const destroyWindow = (index) => {
 const syncPlaybackState = () => {
   const wantPaused = settings ? settings.get_boolean('paused') : false
   for (const entry of players.values()) {
-    if (entry.play) wantPaused ? entry.play.pause() : entry.play.play()
-    else if (entry.media) wantPaused ? entry.media.pause() : entry.media.play()
+    if (entry.media) wantPaused ? entry.media.pause() : entry.media.play()
   }
 }
 
 const syncMuteState = () => {
   const wantMuted = settings ? settings.get_boolean('mute') : true
   for (const entry of players.values()) {
-    if (entry.play) {
-      if (entry.play.mute === wantMuted) entry.play.mute = !wantMuted
-      entry.play.mute = wantMuted
-    } else if (entry.media) {
-      entry.media.muted = wantMuted
-    }
+    if (entry.media) entry.media.muted = wantMuted
+  }
+}
+
+const syncLoopState = () => {
+  const wantLoop = settings ? settings.get_boolean('loop') : true
+  for (const entry of players.values()) {
+    if (entry.media) entry.media.set({ loop: wantLoop })
   }
 }
 
@@ -314,13 +289,14 @@ const RendererApp = GObject.registerClass(
           syncPlaybackState()
         } else if (key === 'mute') {
           syncMuteState()
+        } else if (key === 'loop') {
+          syncLoopState()
         }
       })
     }
   }
 )
 
-Gst.init(null)
 parseArgs(ARGV)
 if (!initialVideoPath) {
   console.error('renderer : aucun chemin de vidéo fourni (-F)')
