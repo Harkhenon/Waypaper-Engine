@@ -1,7 +1,7 @@
 import { app } from 'electron'
 import { promises as fs } from 'fs'
 import { join, resolve } from 'path'
-import { DEFAULT_WORKSHOP_FOLDERS } from '../shared/workshop'
+import { DEFAULT_WORKSHOP_FOLDERS, WORKSHOP_APP_ID } from '../shared/workshop'
 
 interface WorkshopConfig {
   folder: string | null
@@ -93,19 +93,68 @@ export interface DetectedFolder {
   path: string
 }
 
+const STEAM_LIBRARY_CONFIGS = [
+  '~/.local/share/Steam/steamapps/libraryfolders.vdf',
+  '~/.steam/steam/steamapps/libraryfolders.vdf',
+  '~/.steam/debian-installation/steamapps/libraryfolders.vdf',
+  '~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/libraryfolders.vdf',
+  '~/snap/steam/common/.local/share/Steam/steamapps/libraryfolders.vdf'
+]
+
+async function directoryExists(path: string): Promise<boolean> {
+  try {
+    const stat = await fs.stat(path)
+    return stat.isDirectory()
+  } catch {
+    return false
+  }
+}
+
+async function readSteamLibraries(): Promise<string[]> {
+  const home = app.getPath('home')
+  const libraries: string[] = []
+  for (const configLocation of STEAM_LIBRARY_CONFIGS) {
+    try {
+      const raw = await fs.readFile(configLocation.replace(/^~/, home), 'utf-8')
+      const matches = raw.matchAll(/"path"\s+"((?:[^"\\]|\\.)*)"/g)
+      for (const match of matches) {
+        libraries.push(match[1].replace(/\\\\/g, '\\'))
+      }
+    } catch {
+      // fichier absent — installation Steam non détectée à cet emplacement
+    }
+  }
+  return [...new Set(libraries)]
+}
+
 export async function detectWorkshopFolders(): Promise<DetectedFolder[]> {
   const home = app.getPath('home')
   const detected: DetectedFolder[] = []
-  for (const folder of DEFAULT_WORKSHOP_FOLDERS) {
-    const resolved = folder.path.replace(/^~/, home)
-    try {
-      const stat = await fs.stat(resolved)
-      if (stat.isDirectory()) {
-        detected.push({ value: folder.value, label: folder.label, path: resolved })
-      }
-    } catch {
-      // dossier absent — installation non détectée
+  const seen = new Set<string>()
+
+  const push = async (value: string, label: string, path: string): Promise<void> => {
+    const resolved = resolve(path)
+    if (seen.has(resolved)) return
+    if (await directoryExists(resolved)) {
+      seen.add(resolved)
+      detected.push({ value, label, path: resolved })
     }
   }
+
+  for (const folder of DEFAULT_WORKSHOP_FOLDERS) {
+    await push(folder.value, folder.label, folder.path.replace(/^~/, home))
+  }
+
+  for (const library of await readSteamLibraries()) {
+    const shortPath = library.replace(/^~/, home).startsWith(home)
+      ? library.replace(home, '~')
+      : library
+    await push(
+      `library-${shortPath}`,
+      `Bibliothèque Steam (${shortPath})`,
+      join(library, 'steamapps', 'workshop', 'content', WORKSHOP_APP_ID)
+    )
+  }
+
   return detected
 }

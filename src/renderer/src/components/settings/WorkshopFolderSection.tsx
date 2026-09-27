@@ -47,7 +47,7 @@ export function WorkshopFolderSection({
         />
       )}
 
-      {detectedFolders.length === 0 && (
+      {!folder && detectedFolders.length === 0 && (
         <Alert
           color="red"
           title="Wallpaper Engine introuvable"
