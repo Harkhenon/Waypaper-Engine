@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react'
 import { ActionIcon, Group, Text, Box, Divider } from '@mantine/core'
-import { IconMinimize, IconMaximize, IconX, IconPhoto } from '@tabler/icons-react'
+import { IconMinimize, IconMaximize, IconRestore, IconX, IconPhoto } from '@tabler/icons-react'
 
 const titleBarStyle = {
   '-webkit-app-region': 'drag',
@@ -12,6 +13,11 @@ const controlsStyle = {
 
 export function TitleBar() {
   const api = window.api
+  const [maximized, setMaximized] = useState(false)
+
+  useEffect(() => {
+    return api.window.onMaximizedChange(setMaximized)
+  }, [api])
 
   return (
     <Box style={titleBarStyle} h={36} px="sm" bg="anthracite.8">
@@ -35,10 +41,14 @@ export function TitleBar() {
           <ActionIcon
             variant="subtle"
             c="anthracite.1"
-            aria-label="Maximiser"
+            aria-label={maximized ? 'Réduire la fenêtre' : 'Agrandir la fenêtre'}
             onClick={() => api.window.toggleMaximize()}
           >
-            <IconMaximize size={16} stroke={1.5} />
+            {maximized ? (
+              <IconRestore size={16} stroke={1.5} />
+            ) : (
+              <IconMaximize size={16} stroke={1.5} />
+            )}
           </ActionIcon>
           <Divider orientation="vertical" />
           <ActionIcon

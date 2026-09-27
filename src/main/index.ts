@@ -62,6 +62,9 @@ function createWindow(): void {
   })
   ipcMain.on('window:close', () => win.close())
 
+  win.on('maximize', () => win.webContents.send('window:maximized', true))
+  win.on('unmaximize', () => win.webContents.send('window:maximized', false))
+
   win.webContents.setWindowOpenHandler((details) => {
     void shell.openExternal(details.url)
     return { action: 'deny' }

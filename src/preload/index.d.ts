@@ -2,6 +2,7 @@ export interface WindowApi {
   minimize: () => void
   toggleMaximize: () => void
   close: () => void
+  onMaximizedChange: (callback: (maximized: boolean) => void) => () => void
 }
 
 export interface TestApi {

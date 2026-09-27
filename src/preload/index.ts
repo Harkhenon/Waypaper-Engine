@@ -3,7 +3,12 @@ import { contextBridge, ipcRenderer } from 'electron'
 const windowApi = {
   minimize: (): void => ipcRenderer.send('window:minimize'),
   toggleMaximize: (): void => ipcRenderer.send('window:maximize'),
-  close: (): void => ipcRenderer.send('window:close')
+  close: (): void => ipcRenderer.send('window:close'),
+  onMaximizedChange: (callback: (maximized: boolean) => void): (() => void) => {
+    const listener = (_event: unknown, maximized: boolean): void => callback(maximized)
+    ipcRenderer.on('window:maximized', listener)
+    return () => ipcRenderer.removeListener('window:maximized', listener)
+  }
 }
 
 const testApi = {
