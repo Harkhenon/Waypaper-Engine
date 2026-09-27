@@ -59,10 +59,23 @@ const setFilePath = (path) => {
   if (play) {
     play.set_uri(file.get_uri())
   } else if (media) {
-    media.stream_unprepared()
     media.file = file
   }
   setPlay()
+}
+
+// Titre = contrat avec le WindowManager du shell : position cible et états
+// keep* (pattern Hanabi). La fenêtre n'est PAS fullscreen : le shell la
+// minimise et la positionne lui-même, ce qui évite qu'elle intercepte les
+// clics pendant le map.
+const buildWindowTitle = (index, geometry) => {
+  const state = {
+    position: [geometry.x, geometry.y],
+    keepAtBottom: true,
+    keepMinimized: true,
+    keepPosition: true
+  }
+  return `@${APPLICATION_ID}!${JSON.stringify(state)}|${index}`
 }
 
 const syncPlayback = () => {
@@ -120,15 +133,17 @@ const RendererApp = GObject.registerClass(
       const monitors = display ? [...display.get_monitors()] : []
       const widget = setupPlayback()
       monitors.forEach((gdkMonitor, index) => {
+        const geometry = gdkMonitor.get_geometry()
         const window = new Gtk.ApplicationWindow({
           application: this,
           decorated: false,
-          default_width: 1920,
-          default_height: 1080,
-          title: `@${APPLICATION_ID}|${index}`
+          default_width: geometry.width,
+          default_height: geometry.height,
+          title: buildWindowTitle(index, geometry)
         })
         window.set_child(index === 0 ? widget : buildWidgetFromPaintable())
-        window.fullscreen_on_monitor(index)
+        window.set_size_request(geometry.width, geometry.height)
+        window.set_resizable(false)
         window.present()
       })
       settings?.connect('changed', (s, key) => {

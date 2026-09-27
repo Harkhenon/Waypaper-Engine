@@ -3,6 +3,7 @@
 // Le renderer (processus GJS/GTK4) joue la vidéo ; l'extension clone sa
 // fenêtre dans les acteurs de fond du shell.
 import GLib from 'gi://GLib'
+import Gio from 'gi://Gio'
 import Meta from 'gi://Meta'
 import St from 'gi://St'
 import * as Main from 'resource:///org/gnome/shell/ui/main.js'
@@ -19,11 +20,14 @@ export default class WaypaperExtension extends Extension {
     this._settings = this.getSettings(SCHEMA_ID)
     this._wallpaperActors = new Set()
     this._injectionManager = new InjectionManager()
-    this._launcher = new RendererLauncher()
-    this._windowManager = new WindowManager(this._launcher)
+    this._launcher = null
+    this._windowManager = new WindowManager()
     this._subprocess = null
     this._relaunchId = 0
     this._startingUp = Main.layoutManager._startingUp
+    // Nettoie tout renderer orphelin d'une session précédente/crashée :
+    // ses fenêtres plein écran intercepteraient les clics.
+    this._killOrphanRenderers()
 
     const extensionInstance = this
     this._injectionManager.overrideMethod(
@@ -64,6 +68,45 @@ export default class WaypaperExtension extends Extension {
     } else {
       this._reloadBackgrounds()
       this._syncRenderer()
+    }
+  }
+
+  _killOrphanRenderers() {
+    const procFolder = Gio.File.new_for_path('/proc')
+    if (!procFolder.query_exists(null)) return
+    const enumerator = procFolder.enumerate_children(
+      'standard::*',
+      Gio.FileQueryInfoFlags.NONE,
+      null
+    )
+    const rendererPath = `gjs ${GLib.build_filenamev([this.path, 'renderer', 'renderer.js'])}`
+    let info
+    while ((info = enumerator.next_file(null)) !== null) {
+      const pid = info.get_name()
+      const cmdlineFile = Gio.File.new_for_path(GLib.build_filenamev(['/proc', pid, 'cmdline']))
+      if (!cmdlineFile.query_exists(null)) continue
+      let contents = ''
+      try {
+        const [bytes] = cmdlineFile.load_bytes(null)
+        const data = bytes.get_data()
+        if (data) {
+          for (let i = 0; i < data.length; i++) {
+            contents += data[i] < 32 ? ' ' : String.fromCharCode(data[i])
+          }
+        }
+      } catch (e) {
+        continue
+      }
+      if (contents.startsWith(rendererPath)) {
+        console.log(`[waypaper] renderer orphelin tué (pid ${pid})`)
+        try {
+          const killer = new Gio.Subprocess({ argv: ['/bin/kill', pid] })
+          killer.init(null)
+          killer.wait(null)
+        } catch (e) {
+          console.warn(`[waypaper] impossible de tuer le pid ${pid} : ${e}`)
+        }
+      }
     }
   }
 
@@ -114,18 +157,24 @@ export default class WaypaperExtension extends Extension {
       '-F',
       videoPath
     ]
+    this._launcher = new RendererLauncher()
+    this._windowManager.setLauncher(this._launcher)
     try {
       this._subprocess = this._launcher.spawnv(argv)
     } catch (e) {
       console.error(`[waypaper] lancement renderer : ${e}`)
+      this._windowManager.setLauncher(null)
+      this._launcher = null
       this._subprocess = null
       return
     }
-    this._subprocess.subprocess.wait_async(null, (obj, res) => {
+    this._subprocess.wait_async(null, (obj, res) => {
       obj.wait_finish(res)
       console.log(`[waypaper] renderer terminé (exit ${obj.get_exit_status()})`)
-      if (!this._subprocess || obj !== this._subprocess.subprocess) return
+      if (!this._subprocess || obj !== this._subprocess) return
       this._subprocess = null
+      this._launcher = null
+      this._windowManager.setLauncher(null)
       if (this._enabled && this._settings.get_string('video-path') !== '') {
         if (this._relaunchId) GLib.source_remove(this._relaunchId)
         this._relaunchId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
@@ -142,9 +191,13 @@ export default class WaypaperExtension extends Extension {
       GLib.source_remove(this._relaunchId)
       this._relaunchId = 0
     }
+    if (this._launcher) {
+      this._launcher.cancellable?.cancel()
+      this._launcher = null
+    }
+    this._windowManager?.setLauncher(null)
     if (this._subprocess) {
-      this._subprocess.cancellable.cancel()
-      this._subprocess.subprocess.send_signal(15)
+      this._subprocess.send_signal(15)
       this._subprocess = null
     }
   }

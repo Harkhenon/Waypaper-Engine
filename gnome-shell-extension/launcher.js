@@ -4,6 +4,7 @@ import Meta from 'gi://Meta'
 import Gio from 'gi://Gio'
 import GLib from 'gi://GLib'
 import * as Config from 'resource:///org/gnome/shell/misc/config.js'
+import { APPLICATION_ID } from './constants.js'
 
 const shellVersion = parseInt(Config.PACKAGE_VERSION.split('.')[0])
 
@@ -65,7 +66,10 @@ export class RendererLauncher {
   }
 
   query_window_belongs_to(window) {
-    if (this._isX11 || !this.running) return false
+    if (!this.running) return false
+    // X11 : pas de WaylandClient pour revendiquer la fenêtre, mais le titre
+    // transporte notre identifiant — c'est le canal de référence.
+    if (this._isX11) return window.title?.includes(APPLICATION_ID) ?? false
     try {
       return this._waylandClient.owns_window(window)
     } catch (e) {
