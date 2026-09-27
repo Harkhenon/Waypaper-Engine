@@ -84,6 +84,16 @@ const syncPlayback = () => {
   else setPlay()
 }
 
+const syncMute = () => {
+  const wantMuted = settings ? settings.get_boolean('mute') : true
+  if (play) {
+    if (play.mute === wantMuted) play.mute = !wantMuted
+    play.mute = wantMuted
+  } else if (media) {
+    media.muted = wantMuted
+  }
+}
+
 const buildWidgetFromSink = (sink) => {
   sharedPaintable = sink.paintable
   return buildWidgetFromPaintable()
@@ -112,6 +122,7 @@ const setupPlayback = () => {
       adapter.connect('error', (_a, err) => console.error(err))
       const file = Gio.File.new_for_path(videoPath)
       play.set_uri(file.get_uri())
+      play.mute = mute
       play.play()
       sharedPaintable = sink.paintable
       return buildWidgetFromPaintable()
@@ -156,7 +167,7 @@ const RendererApp = GObject.registerClass(
         } else if (key === 'paused') {
           syncPlayback()
         } else if (key === 'mute') {
-          if (media) media.muted = s.get_boolean(key)
+          syncMute()
         }
       })
     }

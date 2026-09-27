@@ -7,7 +7,12 @@ import {
   setWallpaper,
   stopWallpaper
 } from './render'
-import { getExtensionStatus, installExtension } from './gnomeExtension'
+import {
+  getExtensionPlaybackState,
+  getExtensionStatus,
+  installExtension,
+  setExtensionPlaybackValue
+} from './gnomeExtension'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import type { SetWallpaperPayload } from '../shared/render'
@@ -114,6 +119,10 @@ function createWindow(): void {
   ipcMain.handle('render:install', (_event, backendId: string) => installBackendTool(backendId))
   ipcMain.handle('render:extension-status', () => getExtensionStatus())
   ipcMain.handle('render:install-extension', () => installExtension())
+  ipcMain.handle('render:playback-state', () => getExtensionPlaybackState())
+  ipcMain.handle('render:playback-set', (_event, key: 'paused' | 'mute', value: boolean) =>
+    setExtensionPlaybackValue(key, value)
+  )
 
   ipcMain.on('window:minimize', () => win.minimize())
   ipcMain.on('window:maximize', () => {

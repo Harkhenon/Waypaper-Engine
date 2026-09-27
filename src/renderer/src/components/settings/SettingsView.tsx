@@ -1,8 +1,9 @@
 import { Divider, Stack, Title } from '@mantine/core'
 import WorkshopFolderSection from './WorkshopFolderSection'
 import RenderBackendSection from './RenderBackendSection'
+import PlaybackSection from './PlaybackSection'
 import type { ScannedWorkshopItem } from '../../hooks/useWorkshop'
-import type { GnomeExtensionStatus } from '../../../../preload/index'
+import type { GnomeExtensionPlaybackState, GnomeExtensionStatus } from '../../../../preload/index'
 import type { RenderState } from '../../hooks/useRender'
 
 interface SettingsViewProps {
@@ -23,6 +24,9 @@ interface SettingsViewProps {
   gnomeExtensionStatus: GnomeExtensionStatus | null
   gnomeExtensionInstalling: boolean
   onInstallGnomeExtension: () => void
+  playback: GnomeExtensionPlaybackState | null
+  onSetPaused: (paused: boolean) => void
+  onSetMuted: (muted: boolean) => void
 }
 
 export function SettingsView({
@@ -42,7 +46,10 @@ export function SettingsView({
   onInstallRenderBackend,
   gnomeExtensionStatus,
   gnomeExtensionInstalling,
-  onInstallGnomeExtension
+  onInstallGnomeExtension,
+  playback,
+  onSetPaused,
+  onSetMuted
 }: SettingsViewProps) {
   return (
     <Stack gap="md" maw={560}>
@@ -68,6 +75,15 @@ export function SettingsView({
         gnomeExtensionStatus={gnomeExtensionStatus}
         gnomeExtensionInstalling={gnomeExtensionInstalling}
         onInstallGnomeExtension={onInstallGnomeExtension}
+      />
+      <Divider />
+      <PlaybackSection
+        playback={playback}
+        gnomeExtensionActive={Boolean(
+          gnomeExtensionStatus?.installed && gnomeExtensionStatus.enabled
+        )}
+        onSetPaused={onSetPaused}
+        onSetMuted={onSetMuted}
       />
     </Stack>
   )

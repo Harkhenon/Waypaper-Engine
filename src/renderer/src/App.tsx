@@ -23,6 +23,7 @@ export default function App() {
         wallpaperId: wallpaper.id,
         folder: wallpaper.folder
       })
+      await render.refreshPlayback()
       if (result.ok) {
         notifications.show({
           title: 'Wallpaper lancé',
@@ -97,6 +98,13 @@ export default function App() {
                 }}
                 gnomeExtensionStatus={render.extension}
                 gnomeExtensionInstalling={render.installingExtension}
+                playback={render.playback}
+                onSetPaused={(paused) => {
+                  void render.setPaused(paused)
+                }}
+                onSetMuted={(muted) => {
+                  void render.setMuted(muted)
+                }}
                 onInstallGnomeExtension={() => {
                   void (async () => {
                     const result = await render.installExtension()

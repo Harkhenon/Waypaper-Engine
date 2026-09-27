@@ -40,6 +40,12 @@ export interface GnomeExtensionStatus {
   error?: string
 }
 
+export interface GnomeExtensionPlaybackState {
+  paused: boolean
+  muted: boolean
+  videoPath: string
+}
+
 export interface RenderApi {
   extensionStatus: () => Promise<GnomeExtensionStatus>
   installExtension: () => Promise<{
@@ -52,6 +58,8 @@ export interface RenderApi {
   set: (payload: SetWallpaperPayload) => Promise<SetWallpaperResult>
   stop: () => Promise<void>
   install: (backendId: string) => Promise<{ ok: boolean; error?: string }>
+  playbackState: () => Promise<GnomeExtensionPlaybackState>
+  setPlayback: (key: 'paused' | 'mute', value: boolean) => Promise<void>
 }
 
 export interface DetectedWorkshopFolder {

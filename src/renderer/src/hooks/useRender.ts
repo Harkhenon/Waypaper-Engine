@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { GnomeExtensionStatus, RenderDetectResult } from '../../../preload/index'
+import type {
+  GnomeExtensionPlaybackState,
+  GnomeExtensionStatus,
+  RenderDetectResult
+} from '../../../preload/index'
 
 export type RenderState = RenderDetectResult
 
@@ -8,6 +12,35 @@ export function useRender() {
   const [detecting, setDetecting] = useState(false)
   const [extension, setExtension] = useState<GnomeExtensionStatus | null>(null)
   const [installingExtension, setInstallingExtension] = useState(false)
+  const [playback, setPlayback] = useState<GnomeExtensionPlaybackState | null>(null)
+
+  const fetchPlayback = useCallback(async (): Promise<GnomeExtensionPlaybackState | null> => {
+    try {
+      return await window.api.render.playbackState()
+    } catch {
+      return null
+    }
+  }, [])
+
+  const refreshPlayback = useCallback(async (): Promise<void> => {
+    setPlayback(await fetchPlayback())
+  }, [fetchPlayback])
+
+  const setPaused = useCallback(
+    async (paused: boolean): Promise<void> => {
+      await window.api.render.setPlayback('paused', paused)
+      await refreshPlayback()
+    },
+    [refreshPlayback]
+  )
+
+  const setMuted = useCallback(
+    async (muted: boolean): Promise<void> => {
+      await window.api.render.setPlayback('mute', muted)
+      await refreshPlayback()
+    },
+    [refreshPlayback]
+  )
 
   const fetchExtension = useCallback(async (): Promise<GnomeExtensionStatus | null> => {
     try {
@@ -107,6 +140,18 @@ export function useRender() {
     [fetchState]
   )
 
+  useEffect(() => {
+    let cancelled = false
+    const run = async (): Promise<void> => {
+      const result = await fetchPlayback()
+      if (!cancelled) setPlayback(result)
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [fetchPlayback])
+
   return {
     state,
     detecting,
@@ -117,6 +162,10 @@ export function useRender() {
     install,
     extension,
     installingExtension,
-    installExtension
+    installExtension,
+    playback,
+    refreshPlayback,
+    setPaused,
+    setMuted
   }
 }

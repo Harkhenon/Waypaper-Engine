@@ -276,6 +276,45 @@ export async function installExtension(): Promise<InstallResult> {
   return result
 }
 
+export interface ExtensionPlaybackState {
+  paused: boolean
+  muted: boolean
+  videoPath: string
+}
+
+async function readExtensionBoolean(key: 'paused' | 'mute'): Promise<boolean> {
+  const result = await run('gsettings', ['get', EXTENSION_SCHEMA, key])
+  if (result.code !== 0) return false
+  return result.stdout.trim() === 'true'
+}
+
+export async function getExtensionPlaybackState(): Promise<ExtensionPlaybackState> {
+  const [paused, muted, videoResult] = await Promise.all([
+    readExtensionBoolean('paused'),
+    readExtensionBoolean('mute'),
+    run('gsettings', ['get', EXTENSION_SCHEMA, 'video-path'])
+  ])
+  const raw = videoResult.stdout.trim()
+  const videoPath = raw.startsWith("'") && raw.endsWith("'") ? raw.slice(1, -1) : raw
+  return { paused, muted, videoPath }
+}
+
+export async function setExtensionPlaybackValue(
+  key: 'paused' | 'mute',
+  value: boolean
+): Promise<void> {
+  const result = await run('gsettings', [
+    'set',
+    EXTENSION_SCHEMA,
+    key,
+    value ? 'true' : 'false'
+  ])
+  if (result.code !== 0) {
+    throw new Error(`\u00c9chec gsettings ${key} : ${result.stderr.trim().slice(0, 200)}`)
+  }
+  console.log(`[gnome-extension] ${key} = ${value}`)
+}
+
 export async function setExtensionVideoPath(videoPath: string | null): Promise<void> {
   const value = videoPath ?? ''
   let result = await run('gsettings', ['set', EXTENSION_SCHEMA, 'video-path', value])
