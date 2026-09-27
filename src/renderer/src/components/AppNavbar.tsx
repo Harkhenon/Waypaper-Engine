@@ -1,4 +1,4 @@
-import { NavLink, ScrollArea, Stack } from '@mantine/core'
+import { NavLink, Stack } from '@mantine/core'
 import type { NavigationValue } from '../data/navigation'
 import { NAVIGATION_ITEMS } from '../data/navigation'
 
@@ -9,20 +9,18 @@ interface AppNavbarProps {
 
 export function AppNavbar({ section, onSectionChange }: AppNavbarProps) {
   return (
-    <ScrollArea h="100%">
-      <Stack gap="xs" justify="flex-start">
-        {NAVIGATION_ITEMS.map((item) => (
-          <NavLink
-            key={item.value}
-            active={section === item.value}
-            label={item.label}
-            description={item.description}
-            leftSection={<item.icon size={18} stroke={1.5} />}
-            onClick={() => onSectionChange(item.value)}
-          />
-        ))}
-      </Stack>
-    </ScrollArea>
+    <Stack gap="xs" justify="flex-start" p="xs" h="100%">
+      {NAVIGATION_ITEMS.map((item) => (
+        <NavLink
+          key={item.value}
+          active={section === item.value}
+          label={item.label}
+          description={item.description}
+          leftSection={<item.icon size={18} stroke={1.5} />}
+          onClick={() => onSectionChange(item.value)}
+        />
+      ))}
+    </Stack>
   )
 }
 
