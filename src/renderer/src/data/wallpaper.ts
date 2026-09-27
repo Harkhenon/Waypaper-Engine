@@ -10,7 +10,7 @@ export interface WallpaperTypeMeta {
 export const WALLPAPER_TYPE_META: Record<WallpaperType, WallpaperTypeMeta> = {
   video: { value: 'video', label: 'Vidéo', supported: true },
   web: { value: 'web', label: 'Web', supported: true },
-  scene: { value: 'scene', label: 'Scène', supported: false },
+  scene: { value: 'scene', label: 'Scène', supported: true },
   playlist: { value: 'playlist', label: 'Playlist', supported: true },
   application: { value: 'application', label: 'Application', supported: false }
 }

@@ -1,7 +1,8 @@
 import { spawn } from 'child_process'
 import { promises as fs, existsSync } from 'fs'
-import { join } from 'path'
+import { basename, join } from 'path'
 import { pathToFileURL } from 'url'
+import { app } from 'electron'
 import {
   RENDER_BACKENDS,
   type RenderBackendDef,
@@ -15,6 +16,7 @@ import {
   resolvePreview,
   type WorkshopConfig
 } from './workshop'
+import { extractPreviewFromPkg, findPkgFile } from './pkg'
 import { ensureUserSchema, getExtensionStatus, run, setExtensionVideoPath } from './gnomeExtension'
 
 export interface BackendStatus {
@@ -237,6 +239,33 @@ export async function findRenderableFile(
   for (const name of ['index.html', 'index.htm']) {
     const candidate = join(folder, name)
     if (existsSync(candidate)) return { path: candidate, kind: 'web' }
+  }
+
+  // Scène (format propriétaire Wallpaper Engine, non interprétable) : repli
+  // sur l'aperçu animé extrait du .pkg — le renderer le joue en boucle comme
+  // une vidéo.
+  const scenePreview = await extractScenePreview(folder)
+  if (scenePreview) return { path: scenePreview, kind: 'video' }
+  return null
+}
+
+/**
+ * Extrait l'aperçu d'un wallpaper scène depuis son .pkg (cache partagé avec
+ * l'extraction d'aperçus de la bibliothèque).
+ */
+async function extractScenePreview(folder: string): Promise<string | null> {
+  try {
+    const pkgPath = await findPkgFile(folder)
+    if (!pkgPath) return null
+    const itemId = basename(folder)
+    const cacheDir = join(app.getPath('userData'), 'preview-cache')
+    const preview = await extractPreviewFromPkg(pkgPath, cacheDir, itemId)
+    if (preview && existsSync(preview)) {
+      console.log(`[render:scene] aperçu extrait : ${preview}`)
+      return preview
+    }
+  } catch (err) {
+    console.error(`[render:scene] extraction d'aperçu échouée : ${err}`)
   }
   return null
 }
