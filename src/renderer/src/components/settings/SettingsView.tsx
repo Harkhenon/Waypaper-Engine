@@ -14,7 +14,7 @@ interface SettingsViewProps {
   onScanWorkshop: () => void
   onOpenSteamStore: () => void
   onRedetectWorkshop: () => void
-  renderState: RenderState
+  renderState: RenderState | null
   renderDetecting: boolean
   onDetectRender: () => void
   onSelectRenderBackend: (backendId: string | null) => void

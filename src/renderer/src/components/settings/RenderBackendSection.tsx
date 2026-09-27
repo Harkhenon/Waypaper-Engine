@@ -1,9 +1,9 @@
-import { ActionIcon, Alert, Group, Radio, Stack, Text } from '@mantine/core'
+import { ActionIcon, Alert, Group, Loader, Radio, Stack, Text } from '@mantine/core'
 import { IconRefreshDot } from '@tabler/icons-react'
 import type { RenderState } from '../../hooks/useRender'
 
 interface RenderBackendSectionProps {
-  state: RenderState
+  state: RenderState | null
   detecting: boolean
   onDetect: () => void
   onSelect: (backendId: string | null) => void
@@ -15,6 +15,20 @@ const BACKEND_LABELS: Record<string, string> = {
 }
 
 export function RenderBackendSection({ state, detecting, onDetect, onSelect }: RenderBackendSectionProps) {
+  if (!state) {
+    return (
+      <Stack gap="xs">
+        <Text fw={500}>Backend d'affichage</Text>
+        <Group gap="xs">
+          <Loader size="sm" />
+          <Text size="sm" c="anthracite.3">
+            Détection de la session et des outils de rendu…
+          </Text>
+        </Group>
+      </Stack>
+    )
+  }
+
   const available = state.backends.filter((b) => b.available)
 
   return (
